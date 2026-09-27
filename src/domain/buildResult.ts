@@ -48,7 +48,8 @@ export const styleField = (
 /**
  * 出力を組み立てる
  *
- * 住所の項目・level・point は全体の結果から、other と building は切れ目の探索の結果から取る。
+ * 住所の項目・level・point・codes は切れ目の探索の結果が指す解析の結果から、other と building は切れ目の探索の結果から、
+ * nja は全体の結果から取る。
  *
  * @param input - 渡された文字列
  * @param whole - テキスト全体の解析の結果
@@ -64,26 +65,27 @@ export const buildResult = (
   options: NormalizeAddressOptions | undefined,
 ): AddressResult => {
   const style = options?.style;
+  const { address } = outcome;
   const optional = (field: StyledField, value: string | undefined) =>
     value === undefined ? {} : { [field]: styleField(field, value, style) };
   return {
     input,
-    ...optional('prefecture', whole.prefecture),
-    ...optional('city', whole.city),
-    ...optional('town', whole.town),
-    ...optional('number', whole.number),
+    ...optional('prefecture', address.prefecture),
+    ...optional('city', address.city),
+    ...optional('town', address.town),
+    ...optional('number', address.number),
     building: styleField('building', outcome.building, style),
     other: styleField('other', outcome.other, style),
-    level: whole.level,
-    ...(whole.point === undefined ? {} : { point: { ...whole.point } }),
+    level: address.level,
+    ...(address.point === undefined ? {} : { point: { ...address.point } }),
     split: outcome.split,
     ...(options?.codes === true
       ? {
           codes: {
-            ...(whole.lgCode === undefined ? {} : { lgCode: whole.lgCode }),
-            ...(whole.machiazaId === undefined
+            ...(address.lgCode === undefined ? {} : { lgCode: address.lgCode }),
+            ...(address.machiazaId === undefined
               ? {}
-              : { machiazaId: whole.machiazaId }),
+              : { machiazaId: address.machiazaId }),
           },
         }
       : {}),

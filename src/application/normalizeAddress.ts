@@ -7,6 +7,8 @@
 import { guardedNfkc } from '@arihirookazaki/normalize-core';
 import { buildResult } from '../domain/buildResult.ts';
 import {
+  buildingStarts,
+  isAddressFront,
   isSameAddress,
   splitCandidates,
   toBuilding,
@@ -24,28 +26,56 @@ export type NormalizeAddress = (
   options?: NormalizeAddressOptions,
 ) => Promise<AddressResult>;
 
+const findBuildingStart = async (
+  parser: AddressParser,
+  text: string,
+  whole: ParsedAddress,
+): Promise<SplitOutcome | undefined> => {
+  for (const start of buildingStarts(text)) {
+    const building = toBuilding(text.slice(start));
+    if (building === '') {
+      continue;
+    }
+    const front = await parser.parse(text.slice(0, start));
+    if (isAddressFront(whole, front, text.slice(start))) {
+      return { split: 'found', address: front, other: front.other, building };
+    }
+  }
+  return undefined;
+};
+
 const findSplit = async (
   parser: AddressParser,
   text: string,
   whole: ParsedAddress,
 ): Promise<SplitOutcome> => {
+  const unsplit = (split: SplitOutcome['split']): SplitOutcome => ({
+    split,
+    address: whole,
+    other: whole.other,
+    building: '',
+  });
   if (whole.level < 3) {
-    return { split: 'skipped', other: whole.other, building: '' };
+    return unsplit('skipped');
+  }
+  const byStart = await findBuildingStart(parser, text, whole);
+  if (byStart !== undefined) {
+    return byStart;
   }
   const { tail, rest } = wholeTail(whole);
   if (rest === '') {
-    return { split: 'none', other: whole.other, building: '' };
+    return unsplit('none');
   }
   for (const position of splitCandidates(text)) {
     const front = await parser.parse(text.slice(0, position));
     if (isSameAddress(whole, tail, front)) {
       const building = toBuilding(text.slice(position));
       return building === ''
-        ? { split: 'none', other: whole.other, building: '' }
-        : { split: 'found', other: front.other, building };
+        ? unsplit('none')
+        : { split: 'found', address: whole, other: front.other, building };
     }
   }
-  return { split: 'unresolved', other: whole.other, building: '' };
+  return unsplit('unresolved');
 };
 
 /**

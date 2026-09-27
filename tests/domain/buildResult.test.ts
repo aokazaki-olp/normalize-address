@@ -60,9 +60,14 @@ describe('styleField', () => {
 });
 
 describe('buildResult', () => {
-  const outcome = { split: 'found', other: '', building: 'ビル１Ｆ' } as const;
+  const outcome = {
+    split: 'found',
+    address: WHOLE,
+    other: '',
+    building: 'ビル１Ｆ',
+  } as const;
 
-  it('住所の項目は全体の結果、other と building は切れ目の探索の結果から取る', () => {
+  it('住所の項目は outcome.address、other と building は切れ目の探索の結果から取る', () => {
     assert.deepEqual(buildResult('入力', WHOLE, outcome, undefined), {
       input: '入力',
       prefecture: '北海道',
@@ -77,10 +82,11 @@ describe('buildResult', () => {
     });
   });
   it('無い項目は入れない', () => {
+    const whole = { other: 'x', level: 0, raw: {} } as const;
     const result = buildResult(
       'x',
-      { other: 'x', level: 0, raw: {} },
-      { split: 'skipped', other: 'x', building: '' },
+      whole,
+      { split: 'skipped', address: whole, other: 'x', building: '' },
       undefined,
     );
     assert.deepEqual(result, {
@@ -103,13 +109,42 @@ describe('buildResult', () => {
     assert.equal('nja' in without, false);
   });
   it('コードが無ければ codes は空', () => {
+    const whole = {
+      other: '',
+      level: 1,
+      prefecture: '北海道',
+      raw: {},
+    } as const;
     const result = buildResult(
       'x',
-      { other: '', level: 1, prefecture: '北海道', raw: {} },
-      { split: 'skipped', other: '', building: '' },
+      whole,
+      { split: 'skipped', address: whole, other: '', building: '' },
       { codes: true },
     );
     assert.deepEqual(result.codes, {});
+  });
+  it('住所の項目・level・point・codes は前半の結果、nja は全体の結果から取る', () => {
+    const front = {
+      ...WHOLE,
+      number: '1-2',
+      level: 3,
+      point: { lat: 1, lng: 2, level: 3 },
+      lgCode: '011012',
+      machiazaId: '0001003',
+      raw: { front: true },
+    } as const;
+    const result = buildResult(
+      '入力',
+      WHOLE,
+      { ...outcome, address: front, other: '9' },
+      { codes: true, nja: true },
+    );
+    assert.equal(result.number, '1-2');
+    assert.equal(result.level, 3);
+    assert.deepEqual(result.point, { lat: 1, lng: 2, level: 3 });
+    assert.deepEqual(result.codes, { lgCode: '011012', machiazaId: '0001003' });
+    assert.equal(result.other, '9');
+    assert.equal(result.nja, WHOLE.raw);
   });
   it('input には字形の指定を当てない', () => {
     const result = buildResult('１', WHOLE, outcome, {

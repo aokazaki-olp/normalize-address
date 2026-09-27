@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  buildingStarts,
+  isAddressFront,
   isSameAddress,
   splitCandidates,
   toBuilding,
@@ -44,6 +46,22 @@ describe('wholeTail', () => {
     assert.deepEqual(
       wholeTail(parsed({ level: 8, number: '2-3', other: ' タワ-12F' })),
       { tail: '2-3', rest: ' タワ-12F' },
+    );
+  });
+  it('level 8 で other の先頭の号は残りから除く', () => {
+    assert.deepEqual(
+      wholeTail(parsed({ level: 8, number: '3-21-5', other: '号' })),
+      { tail: '3-21-5', rest: '' },
+    );
+    assert.deepEqual(
+      wholeTail(parsed({ level: 8, number: '4-8', other: '番地ビル' })),
+      { tail: '4-8', rest: 'ビル' },
+    );
+  });
+  it('level 8 で先頭の号を除くのは1回だけ', () => {
+    assert.deepEqual(
+      wholeTail(parsed({ level: 8, number: '1-9', other: '号地下1階' })),
+      { tail: '1-9', rest: '地下1階' },
     );
   });
   it('level 3 は other の先頭の番地らしい部分が末尾', () => {
@@ -231,6 +249,245 @@ describe('toBuilding', () => {
   for (const [name, text, expected] of cases) {
     it(name, () => {
       assert.equal(toBuilding(text), expected);
+    });
+  }
+});
+
+describe('buildingStarts', () => {
+  const at = (text: string, part: string): number[] => [text.indexOf(part)];
+  const cases: [string, string, number[]][] = [
+    [
+      'abr-geocoder の規則で番地の後ろに入る空白',
+      '札幌市中央区南3条西3丁目10番地三信ビル4階',
+      at('札幌市中央区南3条西3丁目10番地三信ビル4階', '三信'),
+    ],
+    [
+      '利用者が入れた空白（前半は空白を含めない）',
+      '稲城市向陽台六丁目2番地1 1階',
+      at('稲城市向陽台六丁目2番地1 1階', ' 1階'),
+    ],
+    [
+      '号の後ろ（号は前半に残す）',
+      '東京都千代田区紀尾井町1番3号番町YMビル',
+      at('東京都千代田区紀尾井町1番3号番町YMビル', '番町Y'),
+    ],
+    [
+      '部屋番号の前のハイフンは前半に含めない',
+      '東京都千代田区三崎町三丁目2番6-1104号室レジディア水道橋',
+      at('東京都千代田区三崎町三丁目2番6-1104号室レジディア水道橋', '-1104'),
+    ],
+    [
+      '括弧の前',
+      '神戸市東灘区向洋町中1-14(イーストコート2番街)',
+      at('神戸市東灘区向洋町中1-14(イーストコート2番街)', '('),
+    ],
+    [
+      '独自の規則：3つ以上の番号の後ろの -N号室',
+      '福岡県福岡市中央区清川2-12-4-102号室',
+      at('福岡県福岡市中央区清川2-12-4-102号室', '-102'),
+    ],
+    [
+      '独自の規則：横棒は置き換えた写しで判定し、元の位置で返す',
+      '福岡県福岡市中央区清川2―12―4―102室',
+      at('福岡県福岡市中央区清川2―12―4―102室', '―102'),
+    ],
+    ['2つの番号の後ろの号室には独自の規則を当てない', '清川12-4-102号室', []],
+    ['最初の算用数字より前の空白は使わない', '東京都 千代田区 紀尾井町', []],
+    ['読点の前に入る空白は数字より前', '東京都港区、六本木1-2-3', []],
+    ['住所で終わる', '東京都千代田区紀尾井町1番3号', []],
+    ['挿入した字だけなら使わない', '1ー2ー3ー101号室', []],
+    ['空文字', '', []],
+  ];
+  for (const [name, text, expected] of cases) {
+    it(name, () => {
+      assert.deepEqual(buildingStarts(text), expected);
+    });
+  }
+});
+
+describe('isAddressFront', () => {
+  const area = {
+    prefecture: '北海道',
+    city: '札幌市中央区',
+    town: '南三条西三丁目',
+  };
+  const level3 = parsed({ ...area, other: '10-3信ビル4階' });
+  const level8 = parsed({ ...area, number: '10-3', other: '信ビル', level: 8 });
+  const noTail = parsed({ ...area, other: '字北ノ作305-5クレオビル2F' });
+  const cases: [
+    string,
+    ParsedAddress,
+    Partial<ParsedAddress>,
+    string,
+    boolean,
+  ][] = [
+    [
+      '地域が一致し末尾がある（level 3）',
+      level3,
+      { ...area, other: '10' },
+      'ビル',
+      true,
+    ],
+    [
+      '住所の末尾が全体と違ってもよい',
+      level3,
+      { ...area, number: '10-2', level: 8 },
+      'ビル',
+      true,
+    ],
+    ['住所の末尾が空', level3, { ...area, other: '' }, 'ビル', false],
+    ['住所の末尾が号だけ', level3, { ...area, other: '号' }, 'ビル', false],
+    [
+      'level が 3 未満',
+      level3,
+      { ...area, other: '10', level: 2 },
+      'ビル',
+      false,
+    ],
+    [
+      '町字が違う',
+      level3,
+      { ...area, town: '南三条西四丁目', other: '10' },
+      'ビル',
+      false,
+    ],
+    [
+      'P1：other に建物名が残る',
+      level3,
+      { ...area, other: '10 AKASAKA' },
+      'HILLS',
+      false,
+    ],
+    [
+      'P1：level 8 の前半の other は空でなければならない',
+      level3,
+      { ...area, number: '10', other: 'AKASAKA', level: 8 },
+      'HILLS',
+      false,
+    ],
+    [
+      'P1：other がハイフンで終わる',
+      level3,
+      { ...area, other: '2-107-' },
+      '716',
+      false,
+    ],
+    [
+      'P1：番地の間の 番・の は読み切れている',
+      level3,
+      { ...area, other: '17番の2' },
+      'ビル',
+      true,
+    ],
+    [
+      'P1：番地の間の 番- と末尾の号',
+      level3,
+      { ...area, other: '2番-21号' },
+      'ビル',
+      true,
+    ],
+    [
+      'P1：全体の末尾が空なら、全体の other の先頭と一致し数字で終わる',
+      noTail,
+      { ...area, other: '字北ノ作305-5' },
+      'クレオビル2F',
+      true,
+    ],
+    [
+      'P1：全体の末尾が空なら、全体の other の先頭の短い部分でもよい',
+      noTail,
+      { ...area, other: '字北ノ作305' },
+      '-5クレオビル2F',
+      true,
+    ],
+    [
+      'P1：全体の末尾が空で、全体の other の先頭と一致しない',
+      noTail,
+      { ...area, other: '字南ノ作305' },
+      'ビル',
+      false,
+    ],
+    [
+      'P1：全体の末尾が空で、前半の other が数字で終わらない',
+      noTail,
+      { ...area, other: '字北ノ作305-5クレオ' },
+      'ビル2F',
+      false,
+    ],
+    [
+      'P2：建物部が 地＋数字 で始まる',
+      level3,
+      { ...area, other: '9' },
+      '地9 ビル',
+      false,
+    ],
+    [
+      'P2：建物部が の＋数字 で始まる',
+      level3,
+      { ...area, other: '6' },
+      'の4ビル',
+      false,
+    ],
+    [
+      'P2：建物部が ー＋数字 で始まる',
+      level3,
+      { ...area, other: '1646' },
+      'ー1',
+      false,
+    ],
+    [
+      'P2：建物部が 線 で始まる',
+      level3,
+      { ...area, other: '1' },
+      '線2号',
+      false,
+    ],
+    [
+      'P2：先頭のハイフンは落としてから見る',
+      level3,
+      { ...area, other: '10' },
+      '-202号室',
+      true,
+    ],
+    [
+      'P3：全体が level 8 で前半が level 3 なら受け入れない',
+      level8,
+      { ...area, other: '10' },
+      '3FUNDES',
+      false,
+    ],
+    [
+      'P3：建物部が漢数字で始まれば受け入れる',
+      level8,
+      { ...area, other: '10' },
+      '三信ビル',
+      true,
+    ],
+    [
+      'P3：空白で始まれば受け入れる',
+      level8,
+      { ...area, other: '10' },
+      ' 2階',
+      true,
+    ],
+    [
+      'P3：空白で始まっても、先頭の数字が全体の番地の続きなら受け入れない',
+      level8,
+      { ...area, other: '10' },
+      ' 3号棟',
+      false,
+    ],
+    [
+      'P3：前半も level 8 なら受け入れる',
+      level8,
+      { ...area, number: '10', level: 8 },
+      '3階',
+      true,
+    ],
+  ];
+  for (const [name, whole, front, after, expected] of cases) {
+    it(name, () => {
+      assert.equal(isAddressFront(whole, parsed(front), after), expected);
     });
   }
 });
