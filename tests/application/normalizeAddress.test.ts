@@ -141,6 +141,74 @@ describe('normalizeAddress', () => {
     assert.equal(result.number, undefined);
   });
 
+  it('号の直後で切り、数字の直後の番・号では切らない', async () => {
+    const parser = createFakeParser({
+      東京都渋谷区道玄坂一丁目28番9号2階: {
+        ...SHIBUYA,
+        other: '28-9号2階',
+        level: 3,
+      },
+      東京都渋谷区道玄坂一丁目28番9号: {
+        ...SHIBUYA,
+        other: '28-9号',
+        level: 3,
+      },
+    });
+    const result = await createNormalizeAddress(parser)(
+      '東京都渋谷区道玄坂一丁目28番9号2階',
+    );
+    assert.equal(result.split, 'found');
+    assert.equal(result.building, '2階');
+    assert.equal(result.other, '28-9号');
+    assert.deepEqual(parser.calls, [
+      '東京都渋谷区道玄坂一丁目28番9号2階',
+      '東京都渋谷区道玄坂一',
+      '東京都渋谷区道玄坂一丁目28番9号',
+    ]);
+  });
+
+  it('住所の末尾の直後が号だけなら none', async () => {
+    const parser = createFakeParser({
+      '東京都渋谷区道玄坂一丁目5番15-2号': {
+        ...SHIBUYA,
+        other: '5-15-2号',
+        level: 3,
+      },
+    });
+    const result = await createNormalizeAddress(parser)(
+      '東京都渋谷区道玄坂一丁目5番15-2号',
+    );
+    assert.equal(result.split, 'none');
+    assert.equal(result.building, '');
+    assert.equal(result.other, '5-15-2号');
+    assert.equal(parser.calls.length, 1);
+  });
+
+  it('building の先頭のハイフンを落とす', async () => {
+    const parser = createFakeParser({
+      '東京都渋谷区道玄坂1-20-B1F': { ...SHIBUYA, other: '20-B1F', level: 3 },
+      東京都渋谷区道玄坂1: { ...SHIBUYA, level: 3 },
+      '東京都渋谷区道玄坂1-20': { ...SHIBUYA, other: '20', level: 3 },
+    });
+    const result =
+      await createNormalizeAddress(parser)('東京都渋谷区道玄坂1-20-B1F');
+    assert.equal(result.split, 'found');
+    assert.equal(result.building, 'B1F');
+    assert.equal(result.other, '20');
+  });
+
+  it('ハイフンを落として building が空なら none', async () => {
+    const parser = createFakeParser({
+      '東京都渋谷区道玄坂1-20-': { ...SHIBUYA, other: '20-', level: 3 },
+      '東京都渋谷区道玄坂1-20': { ...SHIBUYA, other: '20', level: 3 },
+    });
+    const result =
+      await createNormalizeAddress(parser)('東京都渋谷区道玄坂1-20-');
+    assert.equal(result.split, 'none');
+    assert.equal(result.building, '');
+    assert.equal(result.other, '20-');
+  });
+
   it('一致する位置が無ければ unresolved', async () => {
     const parser = createFakeParser({
       '東京都渋谷区道玄坂1-2-3ビル': {

@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import {
   isSameAddress,
   splitCandidates,
+  toBuilding,
   wholeTail,
 } from '../../src/domain/split.ts';
 import type { ParsedAddress } from '../../src/ports/addressParser.ts';
@@ -18,7 +19,12 @@ const parsed = (fields: Partial<ParsedAddress>): ParsedAddress => ({
 describe('splitCandidates', () => {
   const cases: [string, string, number[]][] = [
     ['数字の直後で次が数字でない位置', '坂1-2-3 ビル', [2, 4, 6]],
-    ['号・番・地・目の直後', '1番地2号ビル', [1, 2, 4, 5]],
+    ['番地・号の直後', '1番地2号ビル', [3, 5]],
+    ['号の直後は数字でも候補', '1号2階', [2, 3]],
+    ['地の直後は数字でも候補', '5地1', [2]],
+    ['数字の直後が号・番・地なら候補にしない', '28番9号', []],
+    ['番の直後が数字・地なら候補にしない', '1番2番地ビル', [5]],
+    ['目の直後が番なら候補にしない', '目番ビル', [2]],
     ['漢数字の直後', '一丁目三ビル', [1, 3, 4]],
     ['直後が数字なら候補にしない', '目12ビル', [3]],
     ['末尾は候補にしない', 'ビル1', []],
@@ -50,6 +56,28 @@ describe('wholeTail', () => {
     assert.deepEqual(wholeTail(parsed({ other: 'ビル' })), {
       tail: '',
       rest: 'ビル',
+    });
+  });
+  it('level 3 で番地らしい部分の直後の号は残りから除く', () => {
+    assert.deepEqual(wholeTail(parsed({ other: '5-15-2号' })), {
+      tail: '5-15-2',
+      rest: '',
+    });
+    assert.deepEqual(wholeTail(parsed({ other: '28-9号2階' })), {
+      tail: '28-9',
+      rest: '2階',
+    });
+  });
+  it('level 3 で番地らしい部分の直後の番地は最長一致で除く', () => {
+    assert.deepEqual(wholeTail(parsed({ other: '1番地ビル' })), {
+      tail: '1',
+      rest: 'ビル',
+    });
+  });
+  it('番地らしい部分が無ければ号を除かない', () => {
+    assert.deepEqual(wholeTail(parsed({ other: '号室' })), {
+      tail: '',
+      rest: '号室',
     });
   });
   it('末尾のハイフンは番地に含めない', () => {
@@ -104,6 +132,41 @@ describe('isSameAddress', () => {
       true,
     ],
     [
+      'other の末尾の号を落として一致',
+      {
+        prefecture: '東京都',
+        city: '渋谷区',
+        town: '道玄坂一丁目',
+        other: '2-3号',
+      },
+      '2-3',
+      true,
+    ],
+    [
+      'number と、末尾の番地を落とした other をつなぐ',
+      {
+        prefecture: '東京都',
+        city: '渋谷区',
+        town: '道玄坂一丁目',
+        number: '2',
+        other: '3番地',
+      },
+      '2-3',
+      true,
+    ],
+    [
+      '号だけの other は落として number と比べる',
+      {
+        prefecture: '東京都',
+        city: '渋谷区',
+        town: '道玄坂一丁目',
+        number: '2-3',
+        other: '号',
+      },
+      '2-3',
+      true,
+    ],
+    [
       '住所の末尾が違う',
       {
         prefecture: '東京都',
@@ -152,6 +215,22 @@ describe('isSameAddress', () => {
   for (const [name, front, tail, expected] of cases) {
     it(name, () => {
       assert.equal(isSameAddress(whole, tail, parsed(front)), expected);
+    });
+  }
+});
+
+describe('toBuilding', () => {
+  const cases: [string, string, string][] = [
+    ['前後の空白を落とす', ' ビル5F ', 'ビル5F'],
+    ['先頭のハイフンを落とす', '-B1F', 'B1F'],
+    ['続いたハイフンはすべて落とす', '--B1F', 'B1F'],
+    ['ハイフンの後の空白も落とす', ' - B1F', 'B1F'],
+    ['途中のハイフンは残す', 'B-1', 'B-1'],
+    ['ハイフンだけなら空', ' - ', ''],
+  ];
+  for (const [name, text, expected] of cases) {
+    it(name, () => {
+      assert.equal(toBuilding(text), expected);
     });
   }
 });

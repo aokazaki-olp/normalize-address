@@ -9,6 +9,7 @@ import { buildResult } from '../domain/buildResult.ts';
 import {
   isSameAddress,
   splitCandidates,
+  toBuilding,
   wholeTail,
   type SplitOutcome,
 } from '../domain/split.ts';
@@ -38,11 +39,10 @@ const findSplit = async (
   for (const position of splitCandidates(text)) {
     const front = await parser.parse(text.slice(0, position));
     if (isSameAddress(whole, tail, front)) {
-      return {
-        split: 'found',
-        other: front.other,
-        building: text.slice(position).trim(),
-      };
+      const building = toBuilding(text.slice(position));
+      return building === ''
+        ? { split: 'none', other: whole.other, building: '' }
+        : { split: 'found', other: front.other, building };
     }
   }
   return { split: 'unresolved', other: whole.other, building: '' };
