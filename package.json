@@ -33,7 +33,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "THIRD_PARTY_NOTICES.md"
   ],
   "dependencies": {
     "@arihirookazaki/normalize-core": "git+file:///home/okazaki/projects/normalize-address/normalize-core#7c91a5a",
