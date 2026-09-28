@@ -58,6 +58,16 @@ describe('wholeTail', () => {
       { tail: '4-8', rest: 'ビル' },
     );
   });
+  it('番先・地先・番地先も接尾語として除く', () => {
+    assert.deepEqual(
+      wholeTail(parsed({ level: 8, number: '6', other: '番先6街区' })),
+      { tail: '6', rest: '6街区' },
+    );
+    assert.deepEqual(wholeTail(parsed({ other: '4番地先数寄屋' })), {
+      tail: '4',
+      rest: '数寄屋',
+    });
+  });
   it('level 8 で先頭の号を除くのは1回だけ', () => {
     assert.deepEqual(
       wholeTail(parsed({ level: 8, number: '1-9', other: '号地下1階' })),
@@ -245,6 +255,9 @@ describe('toBuilding', () => {
     ['ハイフンの後の空白も落とす', ' - B1F', 'B1F'],
     ['途中のハイフンは残す', 'B-1', 'B-1'],
     ['ハイフンだけなら空', ' - ', ''],
+    ['先頭の長音も落とす', 'ー3F', '3F'],
+    ['全角ハイフン・横棒も落とす', '\uff0d\u2015 B1F', 'B1F'],
+    ['途中の長音は残す', 'タワー', 'タワー'],
   ];
   for (const [name, text, expected] of cases) {
     it(name, () => {
@@ -397,7 +410,7 @@ describe('isAddressFront', () => {
       'P1：全体の末尾が空なら、全体の other の先頭の短い部分でもよい',
       noTail,
       { ...area, other: '字北ノ作305' },
-      '-5クレオビル2F',
+      ' ビル',
       true,
     ],
     [
@@ -485,6 +498,94 @@ describe('isAddressFront', () => {
       true,
     ],
   ];
+  cases.push(
+    ['P1：数字の間の 区', level3, { ...area, other: '2区300-2' }, 'ビル', true],
+    ['P1：末尾の番先', level3, { ...area, other: '1番先' }, 'ビル', true],
+    [
+      'P1：level 8 の前半の other が接尾語だけ',
+      level3,
+      { ...area, number: '6', other: '番先', level: 8 },
+      '6街区',
+      true,
+    ],
+    [
+      'P2：建物部が 番先＋数字 で始まる',
+      level3,
+      { ...area, other: '6' },
+      '番先6街区',
+      false,
+    ],
+    [
+      'P2：横棒の後ろの数字だけは枝番',
+      level3,
+      { ...area, other: '1646' },
+      'ー1',
+      false,
+    ],
+    [
+      'P2：横棒の後ろの 数字＋F＋英字 は番地の続き',
+      level3,
+      { ...area, other: '17' },
+      'ー1FAビレッジ',
+      false,
+    ],
+    [
+      'P2：横棒の後ろの 数字＋F＋記号 は階',
+      level3,
+      { ...area, other: '8-13' },
+      '-4F-CD号室',
+      true,
+    ],
+    [
+      'P2：横棒の後ろの 数字＋階＋英字 は階',
+      level3,
+      { ...area, other: '15-7' },
+      '-1階B',
+      true,
+    ],
+    [
+      'P3：空白の無い階の形は受け入れない（前半が level 8 未満）',
+      level8,
+      { ...area, other: '10' },
+      '-3F',
+      false,
+    ],
+    [
+      'P3：空白の後ろの階の形は、番地の続きに見えても受け入れる',
+      level8,
+      { ...area, other: '10' },
+      ' 3階',
+      true,
+    ],
+    [
+      'P3：空白の後ろでも F の直後が英字なら階でない',
+      level8,
+      { ...area, other: '10' },
+      ' 3FUSHI',
+      false,
+    ],
+    [
+      'P3：空白の後ろでも F の直後が & なら階でない',
+      level8,
+      { ...area, other: '10' },
+      ' 3F&Gビル',
+      false,
+    ],
+    [
+      'P3：空白の後ろでも F の直後が片仮名なら階でない',
+      level8,
+      { ...area, other: '10' },
+      ' 3Fビル1F',
+      false,
+    ],
+    [
+      'P3：空白の後ろで F の直後が ( なら階',
+      level8,
+      { ...area, other: '10' },
+      ' 3F(77号室)',
+      true,
+    ],
+  );
   for (const [name, whole, front, after, expected] of cases) {
     it(name, () => {
       assert.equal(isAddressFront(whole, parsed(front), after), expected);

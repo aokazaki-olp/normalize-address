@@ -350,6 +350,30 @@ describe('normalizeAddress（偽の parser が NJA 3.1.3 の実際の値を返�
     town: '反町三丁目',
   };
   const YOTSUYA = { prefecture: '東京都', city: '新宿区', town: '四谷三丁目' };
+  const KITAICHIJO = {
+    prefecture: '北海道',
+    city: '札幌市中央区',
+    town: '北一条西五丁目',
+  };
+  const TOGA = { prefecture: '大阪府', city: '堺市南区', town: '栂' };
+  const HAKATA = {
+    prefecture: '福岡県',
+    city: '福岡市博多区',
+    town: '博多駅南一丁目',
+  };
+  const IWASE = { prefecture: '千葉県', city: '松戸市', town: '岩瀬' };
+  const MINAMINAKADORI = {
+    prefecture: '神奈川県',
+    city: '横浜市中区',
+    town: '南仲通三丁目',
+  };
+  const YAGUSU = { prefecture: '静岡県', city: '焼津市', town: '八楠一丁目' };
+  const WAKABAYASHI = {
+    prefecture: '宮城県',
+    city: '仙台市若林区',
+    town: '六丁目字南',
+  };
+  const OMACHI = { prefecture: '富山県', city: '富山市', town: '大町' };
 
   const cases: [
     string,
@@ -729,6 +753,167 @@ describe('normalizeAddress（偽の parser が NJA 3.1.3 の実際の値を返�
         level: 3,
         other: '7',
         building: '四谷無三四堂ビル2階',
+        split: 'found',
+      },
+    ],
+    [
+      '全体が level 8 で前半（短い番地）が level 8 未満なら、-NF でも番地を守る',
+      '大阪府堺市南区栂３７１－３Ｆ',
+      {
+        '大阪府堺市南区栂371-3F': {
+          ...TOGA,
+          number: '371-3',
+          other: 'F',
+          level: 8,
+        },
+        大阪府堺市南区栂371: { ...TOGA, other: '371', level: 3 },
+        '大阪府堺市南区栂371-3': { ...TOGA, number: '371-3', level: 8 },
+      },
+      { number: '371-3', level: 8, other: '', building: 'F', split: 'found' },
+    ],
+    [
+      '全体が level 8 の番地（2-9）を、-9F の階の読みで上書きしない',
+      '北海道札幌市中央区北一条西５－２－９Ｆ',
+      {
+        '北海道札幌市中央区北一条西5-2-9F': {
+          ...KITAICHIJO,
+          number: '2-9',
+          other: 'F',
+          level: 8,
+        },
+        '北海道札幌市中央区北一条西5-2': {
+          ...KITAICHIJO,
+          other: '2',
+          level: 3,
+        },
+        北海道札幌市中央区北一: {
+          prefecture: '北海道',
+          city: '札幌市中央区',
+          other: '北一',
+          level: 2,
+        },
+        北海道札幌市中央区北一条西5: {
+          prefecture: '北海道',
+          city: '札幌市中央区',
+          other: '北一条西5',
+          level: 2,
+        },
+        '北海道札幌市中央区北一条西5-2-9': {
+          ...KITAICHIJO,
+          number: '2-9',
+          level: 8,
+        },
+      },
+      { number: '2-9', level: 8, other: '', building: 'F', split: 'found' },
+    ],
+    [
+      '(1) F の直後が英字なら階と読まず、データの番地を守る',
+      '福岡市博多区博多駅南1丁目4-4FUSHIビル2F 203',
+      {
+        '福岡市博多区博多駅南1丁目4-4FUSHIビル2F 203': {
+          ...HAKATA,
+          number: '4-4',
+          other: 'FUSHIビル2F 203',
+          level: 8,
+        },
+        福岡市博多区博多駅南1丁目4: { ...HAKATA, other: '4', level: 3 },
+        福岡市博多区博多駅南1: { ...HAKATA, level: 3 },
+        '福岡市博多区博多駅南1丁目4-4': { ...HAKATA, number: '4-4', level: 8 },
+      },
+      { number: '4-4', level: 8, other: '', building: 'FUSHIビル2F 203' },
+    ],
+    [
+      '(2) 空白の後ろの階は、全体の番地の続きに見えても受け入れる',
+      '千葉県松戸市岩瀬１６４番地 １階',
+      {
+        '千葉県松戸市岩瀬164番地 1階': {
+          ...IWASE,
+          number: '164-1',
+          other: '階',
+          level: 8,
+        },
+        千葉県松戸市岩瀬164番地: { ...IWASE, other: '164', level: 3 },
+      },
+      { level: 3, other: '164', building: '1階', split: 'found' },
+    ],
+    [
+      '(3) 先頭の長音「ー」も落として階と読む',
+      '神奈川県横浜市中区南仲通３－３２－１ー３Ｆ',
+      {
+        '神奈川県横浜市中区南仲通3-32-1ー3F': {
+          ...MINAMINAKADORI,
+          other: '32-1-3F',
+          level: 3,
+        },
+        '神奈川県横浜市中区南仲通3-32-1': {
+          ...MINAMINAKADORI,
+          other: '32-1',
+          level: 3,
+        },
+      },
+      { level: 3, other: '32-1', building: '3F', split: 'found' },
+    ],
+    [
+      '(3) 横棒の後ろの数字が階・部屋番号の形でなければ番地の続き',
+      '焼津市八楠1ー17ー1FAビレッジ101号',
+      {
+        焼津市八楠1ー17ー1FAビレッジ101号: {
+          ...YAGUSU,
+          other: '17-1FAビレッジ101号',
+          level: 3,
+        },
+        焼津市八楠1ー17: { ...YAGUSU, other: '17', level: 3 },
+        焼津市八: {
+          prefecture: '静岡県',
+          city: '焼津市',
+          other: '八',
+          level: 2,
+        },
+        焼津市八楠1: { ...YAGUSU, town: '八楠', other: '1', level: 3 },
+        焼津市八楠1ー17ー1: { ...YAGUSU, other: '17-1', level: 3 },
+      },
+      { level: 3, other: '17-1', building: 'FAビレッジ101号', split: 'found' },
+    ],
+    [
+      '(4) 番先を住所の接尾語として扱う',
+      '宮城県仙台市若林区六丁目字南６番先６街区５画地２',
+      {
+        宮城県仙台市若林区六丁目字南6番先6街区5画地2: {
+          ...WAKABAYASHI,
+          number: '6',
+          other: '番先6街区5画地2',
+          level: 8,
+        },
+        宮城県仙台市若林区六丁目字南6番先: {
+          ...WAKABAYASHI,
+          number: '6',
+          other: '番先',
+          level: 8,
+        },
+      },
+      {
+        number: '6',
+        level: 8,
+        other: '番先',
+        building: '6街区5画地2',
+        split: 'found',
+      },
+    ],
+    [
+      '(5) 数字の間の「区」も住所として読み切れている',
+      '富山県富山市大町２区３００－２大町スタービルＢ棟',
+      {
+        '富山県富山市大町2区300-2大町スタービルB棟': {
+          ...OMACHI,
+          other: '2区300-2大町スタービルB棟',
+          level: 3,
+        },
+        '富山県富山市大町2区300-2': { ...OMACHI, other: '2区300-2', level: 3 },
+      },
+      {
+        level: 3,
+        other: '2区300-2',
+        building: '大町スタービルB棟',
         split: 'found',
       },
     ],

@@ -14,14 +14,22 @@ const BEFORE_ANY = /^[号地]$/u;
 const BEFORE_NON_NUMBER = /^[0-9〇一二三四五六七八九十百千番目]$/u;
 const NUMBER_PART = /^[0-9号番地]$/u;
 const LEADING_NUMBER = /^[0-9]+(?:-[0-9]+)*/u;
-const LEADING_SUFFIX = /^(?:号|番地|番|地)/u;
-const TRAILING_SUFFIX = /(?:号|番地|番|地)$/u;
-const LEADING_HYPHENS = /^-+/u;
+const LEADING_SUFFIX = /^(?:号|番地先|番先|番地|番|地先|地)/u;
+const TRAILING_SUFFIX = /(?:号|番地先|番先|番地|番|地先|地)$/u;
+// NJA 3.1.3 が横棒として扱う字（normalize-core の HORIZONTAL_BAR と同じ集合。normalize-core が公開していないため写す）
+const LEADING_BARS =
+  /^[-\uff0d\ufe63\u2212\u2010\u2043\u2011\u2012\u2013\u2014\ufe58\u2015\u23af\u23e4\u30fc\uff70\u2500\u2501]+/u;
 const FIRST_ASCII_DIGIT = /[0-9]/u;
 const FRONT_OTHER =
-  /^[0-9]+(?:(?:-|番地の|番地|番の|番-|番|号|の|ノ|街区)[0-9]+)*(?:号|番地|番|地)?$/u;
-const ENDS_AS_ADDRESS = /(?:[0-9]|号|番地|番|地)$/u;
-const CONTINUES_ADDRESS = /^(?:(?:番地|番|号|地|[のノ]|[ー-])(?=[0-9])|線)/u;
+  /^[0-9]+(?:(?:-|番地の|番地|番の|番-|番|号|の|ノ|街区|区)[0-9]+)*(?:号|番地先|番先|番地|番|地先|地)?$/u;
+const ENDS_AS_ADDRESS = /(?:[0-9]|号|番地先|番先|番地|番|地先|地)$/u;
+const CONTINUES_ADDRESS =
+  /^(?:(?:番地先|番先|番地|番|号|地先|地|[のノ])(?=[0-9])|線)/u;
+const FLOOR = /^[0-9]+(?:階|F(?![A-Za-z]))/u;
+const CLEAR_FLOOR = /^[0-9]+(?:階|F(?=$|[\s0-9・、,(]))/u;
+const ROOM = /^[0-9]+(?:号室|室)/u;
+const LEADING_DIGIT = /^[0-9]/u;
+const SUFFIX_ONLY = /^(?:号|番地先|番先|番地|番|地先|地)$/u;
 const LEADING_SPACE = /^\s/u;
 const LEADING_DIGITS = /^[0-9]+/u;
 const LEADING_KANJI_NUMERAL = /^[〇一二三四五六七八九十百千]/u;
@@ -116,7 +124,7 @@ const readsThrough = (whole: ParsedAddress, front: ParsedAddress): boolean => {
   const other = front.other.trim();
   if (wholeTail(whole).tail !== '') {
     return front.level === 8
-      ? other === ''
+      ? other === '' || SUFFIX_ONLY.test(other)
       : other === '' || FRONT_OTHER.test(other);
   }
   return whole.other.trim().startsWith(other) && ENDS_AS_ADDRESS.test(other);
@@ -130,9 +138,16 @@ const continuesWholeNumber = (
   const digits = LEADING_DIGITS.exec(building)?.[0];
   return (
     digits !== undefined &&
+    !CLEAR_FLOOR.test(building) &&
     wholeTail(whole).tail === `${frontTail(front)}-${digits}`
   );
 };
+
+const continuesAfterBar = (after: string, building: string): boolean =>
+  LEADING_BARS.test(after.trim()) &&
+  LEADING_DIGIT.test(building) &&
+  !FLOOR.test(building) &&
+  !ROOM.test(building);
 
 const keepsWholeNumber = (
   whole: ParsedAddress,
@@ -150,8 +165,8 @@ const keepsWholeNumber = (
  *
  * 次のすべてを満たすときだけ受け入れる。都道府県・市区町村・町字が全体の結果と一致し、level が 3 以上で、
  * 前半の住所の末尾が空でない。前半が住所として読み切れている。建物部が住所の続き（番・号・の など＋数字、線）で
- * 始まらない。全体が level 8 で前半が level 8 未満なら、建物部が漢数字で始まるか、
- * 後半が空白で始まり建物部の先頭の数字が全体の番地の続きでない。
+ * 始まらず、横棒の後ろの数字が階・部屋番号の形でないもの（枝番）でもない。全体が level 8 で前半が level 8 未満なら、建物部が漢数字で始まるか、
+ * 後半が空白で始まり建物部の先頭の数字が全体の番地の続きでない（階の形なら続きとみなさない）。
  *
  * @param whole - テキスト全体の解析の結果
  * @param front - 建物部の始まりの位置までの前半の解析の結果
@@ -170,6 +185,7 @@ export const isAddressFront = (
     frontTail(front) !== '' &&
     readsThrough(whole, front) &&
     !CONTINUES_ADDRESS.test(building) &&
+    !continuesAfterBar(after, building) &&
     keepsWholeNumber(whole, front, after, building)
   );
 };
@@ -263,10 +279,10 @@ export const buildingStarts = (text: string): number[] => {
 /**
  * 切れ目より後ろのテキストから建物部を取り出す
  *
- * 前後の空白と、先頭のハイフン（続いていればすべて）を落とす。
+ * 前後の空白と、先頭の横棒（長音の「ー」を含む。続いていればすべて）を落とす。
  *
  * @param text - 切れ目より後ろのテキスト
  * @returns 建物部。空なら建物部は無い
  */
 export const toBuilding = (text: string): string =>
-  text.trim().replace(LEADING_HYPHENS, '').trim();
+  text.trim().replace(LEADING_BARS, '').trim();
