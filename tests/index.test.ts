@@ -22,6 +22,22 @@ describe('公開面', () => {
     );
   });
 
+  for (const field of ['number', 'other']) {
+    it(`style.fields のキーが旧名の ${field} なら、create が TypeError を投げる`, () => {
+      assert.throws(
+        () =>
+          publicApi.AddressNormalizer.create({
+            style: { fields: { [field]: {} } },
+          }),
+        (error) => {
+          assert.ok(error instanceof TypeError);
+          assert.match(error.message, new RegExp(`: ${field}$`, 'u'));
+          return true;
+        },
+      );
+    });
+  }
+
   it('options が object でなければ、create が TypeError を投げる', () => {
     assert.throws(
       () =>

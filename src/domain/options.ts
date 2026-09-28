@@ -19,9 +19,9 @@ const STYLED_FIELDS = [
   'prefecture',
   'city',
   'town',
-  'number',
+  'block',
   'building',
-  'other',
+  'unmatched',
 ] as const satisfies readonly StyledField[];
 
 /** 検査とマージを済ませたオプション */
@@ -91,9 +91,9 @@ const toStyles = (
     prefecture: resolve('prefecture'),
     city: resolve('city'),
     town: resolve('town'),
-    number: resolve('number'),
+    block: resolve('block'),
     building: resolve('building'),
-    other: resolve('other'),
+    unmatched: resolve('unmatched'),
   };
 };
 

@@ -7,7 +7,7 @@ import { prepareOptions } from '../../src/domain/options.ts';
 import type { AddressNormalizerOptions } from '../../src/ports/addressResult.ts';
 
 const styled = (
-  field: 'number' | 'building' | 'other',
+  field: 'block' | 'building' | 'unmatched',
   text: string,
   options: AddressNormalizerOptions | undefined,
 ): string => {
@@ -22,20 +22,20 @@ describe('prepareOptions', () => {
     assert.equal(prepared.nja, false);
     assert.equal(prepared.codes, false);
     assert.deepEqual(prepared.styles.prefecture, {});
-    assert.deepEqual(prepared.styles.other, {});
+    assert.deepEqual(prepared.styles.unmatched, {});
   });
   it('default を当てる', () => {
     assert.equal(
-      styled('number', '1-2', { style: { default: { digit: 'full' } } }),
+      styled('block', '1-2', { style: { default: { digit: 'full' } } }),
       '１-２',
     );
   });
   it('項目ごとの指定を default にマージする', () => {
     assert.equal(
-      styled('number', '1-2', {
+      styled('block', '1-2', {
         style: {
           default: { digit: 'full' },
-          fields: { number: { symbol: 'full' } },
+          fields: { block: { symbol: 'full' } },
         },
       }),
       '１－２',
@@ -43,15 +43,15 @@ describe('prepareOptions', () => {
   });
   it('項目ごとの指定が false なら当てない', () => {
     const prepared = prepareOptions({
-      style: { default: { digit: 'full' }, fields: { number: false } },
+      style: { default: { digit: 'full' }, fields: { block: false } },
     });
-    assert.equal(prepared.styles.number, undefined);
+    assert.equal(prepared.styles.block, undefined);
     assert.deepEqual(prepared.styles.town, { digit: 'full' });
   });
   it('項目ごとの指定が undefined なら default だけ', () => {
     assert.equal(
-      styled('number', '1', {
-        style: { default: { digit: 'full' }, fields: { number: undefined } },
+      styled('block', '1', {
+        style: { default: { digit: 'full' }, fields: { block: undefined } },
       }),
       '１',
     );
@@ -59,7 +59,7 @@ describe('prepareOptions', () => {
   it('ほかの項目の指定は当てない', () => {
     assert.equal(
       styled('building', '1', {
-        style: { fields: { number: { digit: 'full' } } },
+        style: { fields: { block: { digit: 'full' } } },
       }),
       '1',
     );
@@ -87,8 +87,16 @@ describe('prepareOptions', () => {
         { style: { fields: { street: {} } } },
       ],
       [
+        'style.fields のキーが旧名の number',
+        { style: { fields: { number: {} } } },
+      ],
+      [
+        'style.fields のキーが旧名の other',
+        { style: { fields: { other: false } } },
+      ],
+      [
         'style.fields の値が object でも false でもない',
-        { style: { fields: { number: true } } },
+        { style: { fields: { block: true } } },
       ],
       [
         'default の指定が検査を満たさない',
@@ -100,7 +108,7 @@ describe('prepareOptions', () => {
       ],
       [
         '項目ごとの指定が検査を満たさない',
-        { style: { fields: { other: { chars: { ab: 'x' } } } } },
+        { style: { fields: { unmatched: { chars: { ab: 'x' } } } } },
       ],
     ];
     for (const [name, options] of invalid) {

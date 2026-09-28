@@ -18,8 +18,8 @@ export interface ParsedAddress {
   prefecture?: string;
   city?: string;
   town?: string;
-  number?: string;
-  other: string;
+  block?: string;
+  unmatched: string;
   level: AddressLevel;
   point?: AddressPoint;
   /** 全国地方公共団体コード（6桁） */

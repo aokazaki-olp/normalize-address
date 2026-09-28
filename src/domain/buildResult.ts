@@ -34,7 +34,7 @@ export const styleField = (
 /**
  * 出力を組み立てる
  *
- * 住所の項目・level・point・codes は切れ目の探索の結果が指す解析の結果から、other と building は切れ目の探索の結果から、
+ * 住所の項目・level・point・codes は切れ目の探索の結果が指す解析の結果から、unmatched と building は切れ目の探索の結果から、
  * nja は全体の結果から取る。
  *
  * @param input - 渡された文字列
@@ -58,9 +58,9 @@ export const buildResult = (
     ...optional('prefecture', address.prefecture),
     ...optional('city', address.city),
     ...optional('town', address.town),
-    ...optional('number', address.number),
+    ...optional('block', address.block),
     building: styleField(outcome.building, styles.building),
-    other: styleField(outcome.other, styles.other),
+    unmatched: styleField(outcome.unmatched, styles.unmatched),
     level: address.level,
     ...(address.point === undefined ? {} : { point: { ...address.point } }),
     split: outcome.split,

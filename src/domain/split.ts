@@ -20,7 +20,7 @@ const TRAILING_SUFFIX = /(?:号|番地先|番先|番地|番|地先|地)$/u;
 const LEADING_BARS =
   /^[-\uff0d\ufe63\u2212\u2010\u2043\u2011\u2012\u2013\u2014\ufe58\u2015\u23af\u23e4\u30fc\uff70\u2500\u2501]+/u;
 const FIRST_ASCII_DIGIT = /[0-9]/u;
-const FRONT_OTHER =
+const FRONT_UNMATCHED =
   /^[0-9]+(?:(?:-|番地の|番地|番の|番-|番|号|の|ノ|街区|区)[0-9]+)*(?:号|番地先|番先|番地|番|地先|地)?$/u;
 const ENDS_AS_ADDRESS = /(?:[0-9]|号|番地先|番先|番地|番|地先|地)$/u;
 const CONTINUES_ADDRESS =
@@ -41,7 +41,7 @@ export interface SplitOutcome {
   split: SplitStatus;
   /** 住所の項目・level・point を取る解析の結果 */
   address: ParsedAddress;
-  other: string;
+  unmatched: string;
   building: string;
 }
 
@@ -76,7 +76,7 @@ export const splitCandidates = (text: string): number[] => {
 /**
  * 全体の結果から、住所の末尾と残りを決める
  *
- * level 8 なら number が末尾で other が残り。それ以外は other の先頭の番地らしい部分が末尾で、
+ * level 8 なら block が末尾で unmatched が残り。それ以外は unmatched の先頭の番地らしい部分が末尾で、
  * その直後の号・番地・番・地も残りから除く。
  *
  * @param whole - テキスト全体の解析の結果（level 3 以上）
@@ -85,24 +85,24 @@ export const splitCandidates = (text: string): number[] => {
 export const wholeTail = (whole: ParsedAddress): AddressTail => {
   const tail =
     whole.level === 8
-      ? (whole.number ?? '')
-      : (LEADING_NUMBER.exec(whole.other)?.[0] ?? '');
+      ? (whole.block ?? '')
+      : (LEADING_NUMBER.exec(whole.unmatched)?.[0] ?? '');
   const afterTail =
-    whole.level === 8 ? whole.other : whole.other.slice(tail.length);
+    whole.level === 8 ? whole.unmatched : whole.unmatched.slice(tail.length);
   const rest = tail === '' ? afterTail : afterTail.replace(LEADING_SUFFIX, '');
   return { tail, rest };
 };
 
 const frontTail = (front: ParsedAddress): string =>
-  [front.number ?? '', front.other.replace(TRAILING_SUFFIX, '')]
+  [front.block ?? '', front.unmatched.replace(TRAILING_SUFFIX, '')]
     .filter((part) => part !== '')
     .join('-');
 
 /**
  * 前半の結果が、全体の結果と同じ住所を指すかを判定する
  *
- * 都道府県・市区町村・町字と住所の末尾を比べる。前半の住所の末尾は number と、
- * 末尾の号・番地・番・地を落とした other を - でつないだもの。
+ * 都道府県・市区町村・町字と住所の末尾を比べる。前半の住所の末尾は block と、
+ * 末尾の号・番地・番・地を落とした unmatched を - でつないだもの。
  *
  * @param whole - テキスト全体の解析の結果
  * @param tail - 全体の住所の末尾
@@ -121,13 +121,16 @@ const isSameArea = (whole: ParsedAddress, front: ParsedAddress): boolean =>
   front.town === whole.town;
 
 const readsThrough = (whole: ParsedAddress, front: ParsedAddress): boolean => {
-  const other = front.other.trim();
+  const unmatched = front.unmatched.trim();
   if (wholeTail(whole).tail !== '') {
     return front.level === 8
-      ? other === '' || SUFFIX_ONLY.test(other)
-      : other === '' || FRONT_OTHER.test(other);
+      ? unmatched === '' || SUFFIX_ONLY.test(unmatched)
+      : unmatched === '' || FRONT_UNMATCHED.test(unmatched);
   }
-  return whole.other.trim().startsWith(other) && ENDS_AS_ADDRESS.test(other);
+  return (
+    whole.unmatched.trim().startsWith(unmatched) &&
+    ENDS_AS_ADDRESS.test(unmatched)
+  );
 };
 
 const continuesWholeNumber = (

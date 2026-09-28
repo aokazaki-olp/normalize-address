@@ -22,8 +22,8 @@ const createFakeParser = (
       calls.push(text);
       const result = results[text];
       return result === undefined
-        ? { other: text, level: 0, raw: { text } }
-        : { other: '', level: 0, raw: { text }, ...result };
+        ? { unmatched: text, level: 0, raw: { text } }
+        : { unmatched: '', level: 0, raw: { text }, ...result };
     },
   };
 };
@@ -41,7 +41,7 @@ describe('createAddressNormalizer', () => {
       東京都渋谷区1ビル: {
         prefecture: '東京都',
         city: '渋谷区',
-        other: '1ビル',
+        unmatched: '1ビル',
         level: 2,
       },
     });
@@ -49,7 +49,7 @@ describe('createAddressNormalizer', () => {
       await createAddressNormalizer(parser).normalize('東京都渋谷区1ビル');
     assert.equal(result.split, 'skipped');
     assert.equal(result.building, '');
-    assert.equal(result.other, '1ビル');
+    assert.equal(result.unmatched, '1ビル');
     assert.equal(parser.calls.length, 1);
   });
 
@@ -57,8 +57,8 @@ describe('createAddressNormalizer', () => {
     const parser = createFakeParser({
       '東京都渋谷区道玄坂1-2-3': {
         ...SHIBUYA,
-        number: '2-3',
-        other: '',
+        block: '2-3',
+        unmatched: '',
         level: 8,
       },
     });
@@ -73,28 +73,28 @@ describe('createAddressNormalizer', () => {
 
   it('level 3 で番地らしい部分のあとに残りが無ければ none', async () => {
     const parser = createFakeParser({
-      '東京都渋谷区道玄坂1-9-9': { ...SHIBUYA, other: '9-9', level: 3 },
+      '東京都渋谷区道玄坂1-9-9': { ...SHIBUYA, unmatched: '9-9', level: 3 },
     });
     const result =
       await createAddressNormalizer(parser).normalize(
         '東京都渋谷区道玄坂1-9-9',
       );
     assert.equal(result.split, 'none');
-    assert.equal(result.other, '9-9');
+    assert.equal(result.unmatched, '9-9');
   });
 
   it('建物部の始まりの位置で切り、住所の項目は前半の結果から取る（level 8）', async () => {
     const parser = createFakeParser({
       '東京都渋谷区道玄坂1-2-3 タワー12F': {
         ...SHIBUYA,
-        number: '2-3',
-        other: ' タワ-12F',
+        block: '2-3',
+        unmatched: ' タワ-12F',
         level: 8,
         point: { lat: 35, lng: 139, level: 8 },
       },
       '東京都渋谷区道玄坂1-2-3': {
         ...SHIBUYA,
-        number: '2-3',
+        block: '2-3',
         level: 8,
         point: { lat: 35.5, lng: 139.5, level: 8 },
       },
@@ -105,9 +105,9 @@ describe('createAddressNormalizer', () => {
     assert.deepEqual(result, {
       input: '東京都渋谷区道玄坂1-2-3 タワー１２Ｆ',
       ...SHIBUYA,
-      number: '2-3',
+      block: '2-3',
       building: 'タワー12F',
-      other: '',
+      unmatched: '',
       level: 8,
       point: { lat: 35.5, lng: 139.5, level: 8 },
       split: 'found',
@@ -122,13 +122,13 @@ describe('createAddressNormalizer', () => {
     const parser = createFakeParser({
       '東京都渋谷区道玄坂1丁目 28番地ビル': {
         ...SHIBUYA,
-        other: '28ビル',
+        unmatched: '28ビル',
         level: 3,
       },
       東京都渋谷区道玄坂1丁目: { ...SHIBUYA, level: 3 },
       '東京都渋谷区道玄坂1丁目 28番地': {
         ...SHIBUYA,
-        other: '28',
+        unmatched: '28',
         level: 3,
       },
     });
@@ -137,7 +137,7 @@ describe('createAddressNormalizer', () => {
     );
     assert.equal(result.split, 'found');
     assert.equal(result.building, 'ビル');
-    assert.equal(result.other, '28');
+    assert.equal(result.unmatched, '28');
     assert.deepEqual(parser.calls, [
       '東京都渋谷区道玄坂1丁目 28番地ビル',
       '東京都渋谷区道玄坂1丁目',
@@ -153,21 +153,21 @@ describe('createAddressNormalizer', () => {
         prefecture: '京都府',
         city: '京都市',
         town: 'X町',
-        other: '12-3 ビル',
+        unmatched: '12-3 ビル',
         level: 3,
       },
       京都府京都市X町12: {
         prefecture: '京都府',
         city: '京都市',
         town: 'X町',
-        other: '12',
+        unmatched: '12',
         level: 3,
       },
       '京都府京都市X町12-3': {
         prefecture: '京都府',
         city: '京都市',
         town: 'X町',
-        other: '12-3',
+        unmatched: '12-3',
         level: 3,
       },
     });
@@ -177,20 +177,20 @@ describe('createAddressNormalizer', () => {
       );
     assert.equal(result.split, 'found');
     assert.equal(result.building, 'ビル');
-    assert.equal(result.other, '12-3');
-    assert.equal(result.number, undefined);
+    assert.equal(result.unmatched, '12-3');
+    assert.equal(result.block, undefined);
   });
 
   it('号の直後で切る', async () => {
     const parser = createFakeParser({
       東京都渋谷区道玄坂一丁目28番9号2階: {
         ...SHIBUYA,
-        other: '28-9号2階',
+        unmatched: '28-9号2階',
         level: 3,
       },
       東京都渋谷区道玄坂一丁目28番9号: {
         ...SHIBUYA,
-        other: '28-9号',
+        unmatched: '28-9号',
         level: 3,
       },
     });
@@ -199,7 +199,7 @@ describe('createAddressNormalizer', () => {
     );
     assert.equal(result.split, 'found');
     assert.equal(result.building, '2階');
-    assert.equal(result.other, '28-9号');
+    assert.equal(result.unmatched, '28-9号');
     assert.deepEqual(parser.calls, [
       '東京都渋谷区道玄坂一丁目28番9号2階',
       '東京都渋谷区道玄坂一丁目28番9号',
@@ -210,7 +210,7 @@ describe('createAddressNormalizer', () => {
     const parser = createFakeParser({
       '東京都渋谷区道玄坂一丁目5番15-2号': {
         ...SHIBUYA,
-        other: '5-15-2号',
+        unmatched: '5-15-2号',
         level: 3,
       },
     });
@@ -219,15 +219,19 @@ describe('createAddressNormalizer', () => {
     );
     assert.equal(result.split, 'none');
     assert.equal(result.building, '');
-    assert.equal(result.other, '5-15-2号');
+    assert.equal(result.unmatched, '5-15-2号');
     assert.equal(parser.calls.length, 1);
   });
 
   it('building の先頭のハイフンを落とす', async () => {
     const parser = createFakeParser({
-      '東京都渋谷区道玄坂1-20-B1F': { ...SHIBUYA, other: '20-B1F', level: 3 },
+      '東京都渋谷区道玄坂1-20-B1F': {
+        ...SHIBUYA,
+        unmatched: '20-B1F',
+        level: 3,
+      },
       東京都渋谷区道玄坂1: { ...SHIBUYA, level: 3 },
-      '東京都渋谷区道玄坂1-20': { ...SHIBUYA, other: '20', level: 3 },
+      '東京都渋谷区道玄坂1-20': { ...SHIBUYA, unmatched: '20', level: 3 },
     });
     const result =
       await createAddressNormalizer(parser).normalize(
@@ -235,13 +239,13 @@ describe('createAddressNormalizer', () => {
       );
     assert.equal(result.split, 'found');
     assert.equal(result.building, 'B1F');
-    assert.equal(result.other, '20');
+    assert.equal(result.unmatched, '20');
   });
 
   it('ハイフンを落として building が空なら none', async () => {
     const parser = createFakeParser({
-      '東京都渋谷区道玄坂1-20-': { ...SHIBUYA, other: '20-', level: 3 },
-      '東京都渋谷区道玄坂1-20': { ...SHIBUYA, other: '20', level: 3 },
+      '東京都渋谷区道玄坂1-20-': { ...SHIBUYA, unmatched: '20-', level: 3 },
+      '東京都渋谷区道玄坂1-20': { ...SHIBUYA, unmatched: '20', level: 3 },
     });
     const result =
       await createAddressNormalizer(parser).normalize(
@@ -249,15 +253,15 @@ describe('createAddressNormalizer', () => {
       );
     assert.equal(result.split, 'none');
     assert.equal(result.building, '');
-    assert.equal(result.other, '20-');
+    assert.equal(result.unmatched, '20-');
   });
 
   it('一致する位置が無ければ unresolved', async () => {
     const parser = createFakeParser({
       '東京都渋谷区道玄坂1-2-3ビル': {
         ...SHIBUYA,
-        number: '2-3',
-        other: 'ビル',
+        block: '2-3',
+        unmatched: 'ビル',
         level: 8,
       },
     });
@@ -267,7 +271,7 @@ describe('createAddressNormalizer', () => {
       );
     assert.equal(result.split, 'unresolved');
     assert.equal(result.building, '');
-    assert.equal(result.other, 'ビル');
+    assert.equal(result.unmatched, 'ビル');
     assert.deepEqual(parser.calls, [
       '東京都渋谷区道玄坂1-2-3ビル',
       '東京都渋谷区道玄坂1-2-3',
@@ -281,8 +285,8 @@ describe('createAddressNormalizer', () => {
     const parser = createFakeParser({
       '東京都渋谷区道玄坂1-2-3': {
         ...SHIBUYA,
-        number: '2-3',
-        other: '',
+        block: '2-3',
+        unmatched: '',
         level: 8,
         lgCode: '131130',
       },
@@ -290,9 +294,9 @@ describe('createAddressNormalizer', () => {
     const result = await createAddressNormalizer(parser, {
       codes: true,
       nja: true,
-      style: { fields: { number: { digit: 'full' } } },
+      style: { fields: { block: { digit: 'full' } } },
     }).normalize('東京都渋谷区道玄坂1-2-3');
-    assert.equal(result.number, '２-３');
+    assert.equal(result.block, '２-３');
     assert.deepEqual(result.codes, { lgCode: '131130' });
     assert.deepEqual(result.nja, { text: '東京都渋谷区道玄坂1-2-3' });
   });
@@ -323,29 +327,29 @@ describe('createAddressNormalizer', () => {
     const parser = createFakeParser({
       '東京都渋谷区道玄坂1-2-3': {
         ...SHIBUYA,
-        number: '2-3',
+        block: '2-3',
         level: 8,
       },
       '東京都渋谷区道玄坂1-2-4': {
         ...SHIBUYA,
-        number: '2-4',
+        block: '2-4',
         level: 8,
       },
     });
     const normalizer = createAddressNormalizer(parser, {
-      style: { fields: { number: { digit: 'full' } } },
+      style: { fields: { block: { digit: 'full' } } },
     });
     const first = await normalizer.normalize('東京都渋谷区道玄坂1-2-3');
     const second = await normalizer.normalize('東京都渋谷区道玄坂1-2-4');
     const again = await normalizer.normalize('東京都渋谷区道玄坂1-2-3');
-    assert.equal(first.number, '２-３');
-    assert.equal(second.number, '２-４');
+    assert.equal(first.block, '２-３');
+    assert.equal(second.block, '２-４');
     assert.deepEqual(again, first);
   });
 
   it('作ったあとで options を書き換えても効かない', async () => {
     const parser = createFakeParser({
-      '東京都渋谷区道玄坂1-2-3': { ...SHIBUYA, number: '2-3', level: 8 },
+      '東京都渋谷区道玄坂1-2-3': { ...SHIBUYA, block: '2-3', level: 8 },
     });
     const charStyle: CharStyle = { digit: 'full' };
     const options = { codes: false, style: { default: charStyle } };
@@ -353,7 +357,7 @@ describe('createAddressNormalizer', () => {
     options.codes = true;
     charStyle.digit = 'half';
     const result = await normalizer.normalize('東京都渋谷区道玄坂1-2-3');
-    assert.equal(result.number, '２-３');
+    assert.equal(result.block, '２-３');
     assert.equal('codes' in result, false);
   });
 
@@ -449,16 +453,16 @@ describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値�
       {
         札幌市中央区南3条西3丁目10番地三信ビル4階: {
           ...SAPPORO,
-          other: '10-3信ビル4階',
+          unmatched: '10-3信ビル4階',
           level: 3,
         },
         札幌市中央区南3条西3丁目10番地: {
           ...SAPPORO,
-          other: '10',
+          unmatched: '10',
           level: 3,
         },
       },
-      { level: 3, other: '10', building: '三信ビル4階', split: 'found' },
+      { level: 3, unmatched: '10', building: '三信ビル4階', split: 'found' },
     ],
     [
       'B：空白の後ろの階の数字を番地につなげない',
@@ -466,12 +470,12 @@ describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値�
       {
         '稲城市向陽台六丁目2番地1 1階': {
           ...INAGI,
-          other: '2-11階',
+          unmatched: '2-11階',
           level: 3,
         },
-        稲城市向陽台六丁目2番地1: { ...INAGI, other: '2-1', level: 3 },
+        稲城市向陽台六丁目2番地1: { ...INAGI, unmatched: '2-1', level: 3 },
       },
-      { level: 3, other: '2-1', building: '1階', split: 'found' },
+      { level: 3, unmatched: '2-1', building: '1階', split: 'found' },
     ],
     [
       'C：ハイフンでつないだ番号の最後の号室を建物部にする',
@@ -479,38 +483,38 @@ describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値�
       {
         '福岡県福岡市中央区清川2-12-4-102号室': {
           ...KIYOKAWA,
-          other: '12-4-102号室',
+          unmatched: '12-4-102号室',
           level: 3,
         },
         '福岡県福岡市中央区清川2-12-4': {
           ...KIYOKAWA,
-          number: '12-4',
+          block: '12-4',
           level: 8,
         },
       },
       {
-        number: '12-4',
+        block: '12-4',
         level: 8,
-        other: '',
+        unmatched: '',
         building: '102号室',
         split: 'found',
       },
     ],
     [
-      'D：level 8 で other に号だけが残れば none',
+      'D：level 8 で unmatched に号だけが残れば none',
       '秋田県大仙市大曲須和町二丁目3番21―5号',
       {
         '秋田県大仙市大曲須和町二丁目3番21―5号': {
           ...DAISEN,
-          number: '3-21-5',
-          other: '号',
+          block: '3-21-5',
+          unmatched: '号',
           level: 8,
         },
       },
       {
-        number: '3-21-5',
+        block: '3-21-5',
         level: 8,
-        other: '号',
+        unmatched: '号',
         building: '',
         split: 'none',
       },
@@ -521,16 +525,16 @@ describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値�
       {
         '東京都千代田区二番町1-2 番町ハイム209号': {
           ...NIBANCHO,
-          number: '1-2',
-          other: '番町ハイム209号',
+          block: '1-2',
+          unmatched: '番町ハイム209号',
           level: 8,
         },
-        '東京都千代田区二番町1-2': { ...NIBANCHO, number: '1-2', level: 8 },
+        '東京都千代田区二番町1-2': { ...NIBANCHO, block: '1-2', level: 8 },
       },
       {
-        number: '1-2',
+        block: '1-2',
         level: 8,
-        other: '',
+        unmatched: '',
         building: '番町ハイム209号',
         split: 'found',
       },
@@ -541,20 +545,20 @@ describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値�
       {
         東京都千代田区紀尾井町1番3号番町YMビル: {
           ...KIOICHO,
-          number: '1-3',
-          other: ' 番町YMビル',
+          block: '1-3',
+          unmatched: ' 番町YMビル',
           level: 8,
         },
         東京都千代田区紀尾井町1番3号: {
           ...KIOICHO,
-          number: '1-3',
+          block: '1-3',
           level: 8,
         },
       },
       {
-        number: '1-3',
+        block: '1-3',
         level: 8,
-        other: '',
+        unmatched: '',
         building: '番町YMビル',
         split: 'found',
       },
@@ -565,20 +569,20 @@ describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値�
       {
         東京都千代田区紀尾井町1番9号地下1階: {
           ...KIOICHO,
-          number: '1-9',
-          other: ' 地下1階',
+          block: '1-9',
+          unmatched: ' 地下1階',
           level: 8,
         },
         東京都千代田区紀尾井町1番9号: {
           ...KIOICHO,
-          number: '1-9',
+          block: '1-9',
           level: 8,
         },
       },
       {
-        number: '1-9',
+        block: '1-9',
         level: 8,
-        other: '',
+        unmatched: '',
         building: '地下1階',
         split: 'found',
       },
@@ -589,16 +593,16 @@ describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値�
       {
         大阪府堺市南区茶山台1丁270番地泉北ビル2階: {
           ...CHAYAMADAI,
-          other: '270泉北ビル2階',
+          unmatched: '270泉北ビル2階',
           level: 3,
         },
         大阪府堺市南区茶山台1丁270番地: {
           ...CHAYAMADAI,
-          other: '270',
+          unmatched: '270',
           level: 3,
         },
       },
-      { level: 3, other: '270', building: '泉北ビル2階', split: 'found' },
+      { level: 3, unmatched: '270', building: '泉北ビル2階', split: 'found' },
     ],
     [
       '号の直後の建物名',
@@ -606,20 +610,20 @@ describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値�
       {
         東京都中央区銀座2丁目2番12号有馬ビル7F: {
           ...GINZA,
-          number: '2-12',
-          other: ' 有馬ビル7F',
+          block: '2-12',
+          unmatched: ' 有馬ビル7F',
           level: 8,
         },
         東京都中央区銀座2丁目2番12号: {
           ...GINZA,
-          number: '2-12',
+          block: '2-12',
           level: 8,
         },
       },
       {
-        number: '2-12',
+        block: '2-12',
         level: 8,
-        other: '',
+        unmatched: '',
         building: '有馬ビル7F',
         split: 'found',
       },
@@ -630,13 +634,19 @@ describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値�
       {
         東京都中央区銀座2丁目4番8号2階: {
           ...GINZA,
-          number: '4-8',
-          other: ' 2階',
+          block: '4-8',
+          unmatched: ' 2階',
           level: 8,
         },
-        東京都中央区銀座2丁目4番8号: { ...GINZA, number: '4-8', level: 8 },
+        東京都中央区銀座2丁目4番8号: { ...GINZA, block: '4-8', level: 8 },
       },
-      { number: '4-8', level: 8, other: '', building: '2階', split: 'found' },
+      {
+        block: '4-8',
+        level: 8,
+        unmatched: '',
+        building: '2階',
+        split: 'found',
+      },
     ],
     [
       'ハイフンでつないだ号は住所側に残す',
@@ -644,44 +654,44 @@ describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値�
       {
         '東京都中央区銀座2丁目3番24-505号': {
           ...GINZA,
-          other: '3-24-505号',
+          unmatched: '3-24-505号',
           level: 3,
         },
       },
-      { level: 3, other: '3-24-505号', building: '', split: 'none' },
+      { level: 3, unmatched: '3-24-505号', building: '', split: 'none' },
     ],
     [
-      '(1) 建物名の中の空白で切った前半は、other に建物名が残るので受け入れない',
+      '(1) 建物名の中の空白で切った前半は、unmatched に建物名が残るので受け入れない',
       '兵庫県明石市大久保町ゆりのき通2丁目2番地の1AKASAKA HILLS 302',
       {
         '兵庫県明石市大久保町ゆりのき通2丁目2番地の1AKASAKA HILLS 302': {
           ...AKASHI,
-          number: '2-1',
-          other: 'AKASAKA HILLS 302',
+          block: '2-1',
+          unmatched: 'AKASAKA HILLS 302',
           level: 8,
         },
         兵庫県明石市大久保町ゆりのき通2丁目2番地の1AKASAKA: {
           ...AKASHI,
-          number: '2-1',
-          other: 'AKASAKA',
+          block: '2-1',
+          unmatched: 'AKASAKA',
           level: 8,
         },
         兵庫県明石市大久保町ゆりのき通2: { ...AKASHI, level: 3 },
         兵庫県明石市大久保町ゆりのき通2丁目2番地: {
           ...AKASHI,
-          other: '2',
+          unmatched: '2',
           level: 3,
         },
         兵庫県明石市大久保町ゆりのき通2丁目2番地の1: {
           ...AKASHI,
-          number: '2-1',
+          block: '2-1',
           level: 8,
         },
       },
       {
-        number: '2-1',
+        block: '2-1',
         level: 8,
-        other: '',
+        unmatched: '',
         building: 'AKASAKA HILLS 302',
         split: 'found',
       },
@@ -692,18 +702,18 @@ describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値�
       {
         '東京都大田区蒲田5-11-10FUNDES蒲田7階': {
           ...KAMATA,
-          number: '11-10',
-          other: 'FUNDES蒲田7階',
+          block: '11-10',
+          unmatched: 'FUNDES蒲田7階',
           level: 8,
         },
-        '東京都大田区蒲田5-11': { ...KAMATA, other: '11', level: 3 },
+        '東京都大田区蒲田5-11': { ...KAMATA, unmatched: '11', level: 3 },
         東京都大田区蒲田5: { ...KAMATA, level: 3 },
-        '東京都大田区蒲田5-11-10': { ...KAMATA, number: '11-10', level: 8 },
+        '東京都大田区蒲田5-11-10': { ...KAMATA, block: '11-10', level: 8 },
       },
       {
-        number: '11-10',
+        block: '11-10',
         level: 8,
-        other: '',
+        unmatched: '',
         building: 'FUNDES蒲田7階',
         split: 'found',
       },
@@ -714,23 +724,23 @@ describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値�
       {
         '東京都江東区東砂二丁目13番 10号棟101号': {
           ...HIGASHISUNA,
-          number: '13-10',
-          other: '棟101号',
+          block: '13-10',
+          unmatched: '棟101号',
           level: 8,
         },
         東京都江東区東砂二丁目13番: {
           ...HIGASHISUNA,
-          other: '13',
+          unmatched: '13',
           level: 3,
         },
         東京都江東区東砂二: { ...HIGASHISUNA, level: 3 },
         '東京都江東区東砂二丁目13番 10号': {
           ...HIGASHISUNA,
-          number: '13-10',
+          block: '13-10',
           level: 8,
         },
       },
-      { number: '13-10', level: 8, other: '', building: '棟101号' },
+      { block: '13-10', level: 8, unmatched: '', building: '棟101号' },
     ],
     [
       '(3) 建物部が番地の続き（地＋数字）で始まるなら受け入れない',
@@ -738,63 +748,63 @@ describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値�
       {
         '東京都千代田区六番町9番地9 第三青葉事務所1階': {
           ...ROKUBANCHO,
-          number: '9-9',
-          other: '第三青葉事務所1階',
+          block: '9-9',
+          unmatched: '第三青葉事務所1階',
           level: 8,
         },
-        東京都千代田区六番町9番: { ...ROKUBANCHO, other: '9', level: 3 },
-        東京都千: { prefecture: '東京都', other: '千', level: 1 },
+        東京都千代田区六番町9番: { ...ROKUBANCHO, unmatched: '9', level: 3 },
+        東京都千: { prefecture: '東京都', unmatched: '千', level: 1 },
         東京都千代田区六番: { ...ROKUBANCHO, level: 3 },
-        東京都千代田区六番町9番地: { ...ROKUBANCHO, other: '9', level: 3 },
+        東京都千代田区六番町9番地: { ...ROKUBANCHO, unmatched: '9', level: 3 },
         東京都千代田区六番町9番地9: {
           ...ROKUBANCHO,
-          number: '9-9',
+          block: '9-9',
           level: 8,
         },
       },
       {
-        number: '9-9',
+        block: '9-9',
         level: 8,
-        other: '',
+        unmatched: '',
         building: '第三青葉事務所1階',
         split: 'found',
       },
     ],
     [
-      '(4) other がハイフンで終わる前半は受け入れない',
+      '(4) unmatched がハイフンで終わる前半は受け入れない',
       '大分県臼杵市大字臼杵2の107番地の716',
       {
         大分県臼杵市大字臼杵2の107番地の716: {
           ...USUKI,
-          other: '2-107-716',
+          unmatched: '2-107-716',
           level: 3,
         },
         大分県臼杵市大字臼杵2の107番地の: {
           ...USUKI,
-          other: '2-107-',
+          unmatched: '2-107-',
           level: 3,
         },
       },
-      { level: 3, other: '2-107-716', building: '', split: 'none' },
+      { level: 3, unmatched: '2-107-716', building: '', split: 'none' },
     ],
     [
-      '番地の間に番・の が残る other（level 3）は読み切れている',
+      '番地の間に番・の が残る unmatched（level 3）は読み切れている',
       '神奈川県横浜市神奈川区反町三丁目17番の2 神奈川県社会福祉センター2階',
       {
         '神奈川県横浜市神奈川区反町三丁目17番の2 神奈川県社会福祉センター2階': {
           ...TANMACHI,
-          other: '17番の2 神奈川県社会福祉センタ-2階',
+          unmatched: '17番の2 神奈川県社会福祉センタ-2階',
           level: 3,
         },
         神奈川県横浜市神奈川区反町三丁目17番の2: {
           ...TANMACHI,
-          other: '17番の2',
+          unmatched: '17番の2',
           level: 3,
         },
       },
       {
         level: 3,
-        other: '17番の2',
+        unmatched: '17番の2',
         building: '神奈川県社会福祉センター2階',
         split: 'found',
       },
@@ -805,15 +815,15 @@ describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値�
       {
         '東京都新宿区四谷三丁目7番地 四谷無三四堂ビル2階': {
           ...YOTSUYA,
-          number: '7-4',
-          other: '谷無三四堂ビル2階',
+          block: '7-4',
+          unmatched: '谷無三四堂ビル2階',
           level: 8,
         },
-        東京都新宿区四谷三丁目7番地: { ...YOTSUYA, other: '7', level: 3 },
+        東京都新宿区四谷三丁目7番地: { ...YOTSUYA, unmatched: '7', level: 3 },
       },
       {
         level: 3,
-        other: '7',
+        unmatched: '7',
         building: '四谷無三四堂ビル2階',
         split: 'found',
       },
@@ -824,14 +834,20 @@ describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値�
       {
         '大阪府堺市南区栂371-3F': {
           ...TOGA,
-          number: '371-3',
-          other: 'F',
+          block: '371-3',
+          unmatched: 'F',
           level: 8,
         },
-        大阪府堺市南区栂371: { ...TOGA, other: '371', level: 3 },
-        '大阪府堺市南区栂371-3': { ...TOGA, number: '371-3', level: 8 },
+        大阪府堺市南区栂371: { ...TOGA, unmatched: '371', level: 3 },
+        '大阪府堺市南区栂371-3': { ...TOGA, block: '371-3', level: 8 },
       },
-      { number: '371-3', level: 8, other: '', building: 'F', split: 'found' },
+      {
+        block: '371-3',
+        level: 8,
+        unmatched: '',
+        building: 'F',
+        split: 'found',
+      },
     ],
     [
       '全体が level 8 の番地（2-9）を、-9F の階の読みで上書きしない',
@@ -839,34 +855,34 @@ describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値�
       {
         '北海道札幌市中央区北一条西5-2-9F': {
           ...KITAICHIJO,
-          number: '2-9',
-          other: 'F',
+          block: '2-9',
+          unmatched: 'F',
           level: 8,
         },
         '北海道札幌市中央区北一条西5-2': {
           ...KITAICHIJO,
-          other: '2',
+          unmatched: '2',
           level: 3,
         },
         北海道札幌市中央区北一: {
           prefecture: '北海道',
           city: '札幌市中央区',
-          other: '北一',
+          unmatched: '北一',
           level: 2,
         },
         北海道札幌市中央区北一条西5: {
           prefecture: '北海道',
           city: '札幌市中央区',
-          other: '北一条西5',
+          unmatched: '北一条西5',
           level: 2,
         },
         '北海道札幌市中央区北一条西5-2-9': {
           ...KITAICHIJO,
-          number: '2-9',
+          block: '2-9',
           level: 8,
         },
       },
-      { number: '2-9', level: 8, other: '', building: 'F', split: 'found' },
+      { block: '2-9', level: 8, unmatched: '', building: 'F', split: 'found' },
     ],
     [
       '(1) F の直後が英字なら階と読まず、データの番地を守る',
@@ -874,15 +890,15 @@ describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値�
       {
         '福岡市博多区博多駅南1丁目4-4FUSHIビル2F 203': {
           ...HAKATA,
-          number: '4-4',
-          other: 'FUSHIビル2F 203',
+          block: '4-4',
+          unmatched: 'FUSHIビル2F 203',
           level: 8,
         },
-        福岡市博多区博多駅南1丁目4: { ...HAKATA, other: '4', level: 3 },
+        福岡市博多区博多駅南1丁目4: { ...HAKATA, unmatched: '4', level: 3 },
         福岡市博多区博多駅南1: { ...HAKATA, level: 3 },
-        '福岡市博多区博多駅南1丁目4-4': { ...HAKATA, number: '4-4', level: 8 },
+        '福岡市博多区博多駅南1丁目4-4': { ...HAKATA, block: '4-4', level: 8 },
       },
-      { number: '4-4', level: 8, other: '', building: 'FUSHIビル2F 203' },
+      { block: '4-4', level: 8, unmatched: '', building: 'FUSHIビル2F 203' },
     ],
     [
       '(2) 空白の後ろの階は、全体の番地の続きに見えても受け入れる',
@@ -890,13 +906,13 @@ describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値�
       {
         '千葉県松戸市岩瀬164番地 1階': {
           ...IWASE,
-          number: '164-1',
-          other: '階',
+          block: '164-1',
+          unmatched: '階',
           level: 8,
         },
-        千葉県松戸市岩瀬164番地: { ...IWASE, other: '164', level: 3 },
+        千葉県松戸市岩瀬164番地: { ...IWASE, unmatched: '164', level: 3 },
       },
-      { level: 3, other: '164', building: '1階', split: 'found' },
+      { level: 3, unmatched: '164', building: '1階', split: 'found' },
     ],
     [
       '(3) 先頭の長音「ー」も落として階と読む',
@@ -904,16 +920,16 @@ describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値�
       {
         '神奈川県横浜市中区南仲通3-32-1ー3F': {
           ...MINAMINAKADORI,
-          other: '32-1-3F',
+          unmatched: '32-1-3F',
           level: 3,
         },
         '神奈川県横浜市中区南仲通3-32-1': {
           ...MINAMINAKADORI,
-          other: '32-1',
+          unmatched: '32-1',
           level: 3,
         },
       },
-      { level: 3, other: '32-1', building: '3F', split: 'found' },
+      { level: 3, unmatched: '32-1', building: '3F', split: 'found' },
     ],
     [
       '(3) 横棒の後ろの数字が階・部屋番号の形でなければ番地の続き',
@@ -921,20 +937,25 @@ describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値�
       {
         焼津市八楠1ー17ー1FAビレッジ101号: {
           ...YAGUSU,
-          other: '17-1FAビレッジ101号',
+          unmatched: '17-1FAビレッジ101号',
           level: 3,
         },
-        焼津市八楠1ー17: { ...YAGUSU, other: '17', level: 3 },
+        焼津市八楠1ー17: { ...YAGUSU, unmatched: '17', level: 3 },
         焼津市八: {
           prefecture: '静岡県',
           city: '焼津市',
-          other: '八',
+          unmatched: '八',
           level: 2,
         },
-        焼津市八楠1: { ...YAGUSU, town: '八楠', other: '1', level: 3 },
-        焼津市八楠1ー17ー1: { ...YAGUSU, other: '17-1', level: 3 },
+        焼津市八楠1: { ...YAGUSU, town: '八楠', unmatched: '1', level: 3 },
+        焼津市八楠1ー17ー1: { ...YAGUSU, unmatched: '17-1', level: 3 },
       },
-      { level: 3, other: '17-1', building: 'FAビレッジ101号', split: 'found' },
+      {
+        level: 3,
+        unmatched: '17-1',
+        building: 'FAビレッジ101号',
+        split: 'found',
+      },
     ],
     [
       '(4) 番先を住所の接尾語として扱う',
@@ -942,21 +963,21 @@ describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値�
       {
         宮城県仙台市若林区六丁目字南6番先6街区5画地2: {
           ...WAKABAYASHI,
-          number: '6',
-          other: '番先6街区5画地2',
+          block: '6',
+          unmatched: '番先6街区5画地2',
           level: 8,
         },
         宮城県仙台市若林区六丁目字南6番先: {
           ...WAKABAYASHI,
-          number: '6',
-          other: '番先',
+          block: '6',
+          unmatched: '番先',
           level: 8,
         },
       },
       {
-        number: '6',
+        block: '6',
         level: 8,
-        other: '番先',
+        unmatched: '番先',
         building: '6街区5画地2',
         split: 'found',
       },
@@ -967,14 +988,18 @@ describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値�
       {
         '富山県富山市大町2区300-2大町スタービルB棟': {
           ...OMACHI,
-          other: '2区300-2大町スタービルB棟',
+          unmatched: '2区300-2大町スタービルB棟',
           level: 3,
         },
-        '富山県富山市大町2区300-2': { ...OMACHI, other: '2区300-2', level: 3 },
+        '富山県富山市大町2区300-2': {
+          ...OMACHI,
+          unmatched: '2区300-2',
+          level: 3,
+        },
       },
       {
         level: 3,
-        other: '2区300-2',
+        unmatched: '2区300-2',
         building: '大町スタービルB棟',
         split: 'found',
       },

@@ -9,7 +9,7 @@ import type { AddressLevel, AddressPoint } from './addressParser.ts';
 
 /** 字形の指定を当てる項目 */
 export type StyledField =
-  'prefecture' | 'city' | 'town' | 'number' | 'building' | 'other';
+  'prefecture' | 'city' | 'town' | 'block' | 'building' | 'unmatched';
 
 /** 出力の字形の指定 */
 export interface AddressStyle {
@@ -42,12 +42,18 @@ export interface AddressResult {
   city?: string;
   /** 町字：大字・丁目・小字（NJA の town） */
   town?: string;
-  /** 街区符号-住居番号、または地番（NJA の addr） */
-  number?: string;
+  /**
+   * 番地等（NJA の addr）。住居表示の地域では「街区符号-住居番号」（例 21-3）、地番の地域では地番（例 3060-1）。
+   * 地番の地域では、道路で囲まれた街区ではなく一筆の土地を指す
+   */
+  block?: string;
   /** 建物部。無ければ '' */
   building: string;
-  /** 住所として読めなかった残り */
-  other: string;
+  /**
+   * データで確かめられなかった住所の残り（NJA の other にあたる）。ただし建物部は building に切り出してある。
+   * split が 'unresolved' のときは、建物部を含む残り全部
+   */
+  unmatched: string;
   /** NJA の level */
   level: AddressLevel;
   /** 位置情報 */

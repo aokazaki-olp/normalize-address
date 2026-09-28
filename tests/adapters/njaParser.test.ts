@@ -27,8 +27,8 @@ describe('toParsedAddress', () => {
       prefecture: '北海道',
       city: '札幌市中央区',
       town: '北一条西二丁目',
-      number: '1',
-      other: '',
+      block: '1',
+      unmatched: '',
       level: 8,
       point: { lat: 43.06, lng: 141.35, level: 8 },
       lgCode: '011011',
@@ -52,7 +52,7 @@ describe('toParsedAddress', () => {
       metadata: { input: '住所ではない' },
     } as unknown as NormalizeResult;
     assert.deepEqual(toParsedAddress(result), {
-      other: '住所ではない',
+      unmatched: '住所ではない',
       level: 0,
       raw: result,
     });

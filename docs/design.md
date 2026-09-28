@@ -27,9 +27,9 @@ export interface AddressResult {
   prefecture?: string; // NJA の pref
   city?: string; // NJA の city（郡＋市区町村＋政令市の区）
   town?: string; // NJA の town（町字：大字・丁目・小字）
-  number?: string; // NJA の addr（街区符号-住居番号、または地番）
+  block?: string; // NJA の addr（番地等：街区符号-住居番号、または地番）
   building: string; // 建物部。無ければ ''
-  other: string; // 住所として読めなかった残り
+  unmatched: string; // データで確かめられなかった住所の残り（NJA の other にあたる）
   level: 0 | 1 | 2 | 3 | 8; // NJA の level
   point?: { lat: number; lng: number; level: number };
   split: 'found' | 'none' | 'unresolved' | 'skipped';
@@ -38,8 +38,11 @@ export interface AddressResult {
 }
 ```
 
-- 名前は NJA の分け方に合わせ、略称だけを正式な語にする（`pref` → `prefecture`、`addr` → `number`）。`city`・`town` の中身は NJA の定義のまま
-- 字形は、ガード付き NFKC（`@arihirookazaki/normalize-core`）をかけた後の文字列。`prefecture`〜`number` は NJA が返すマスターの表記
+- 名前は NJA の分け方に合わせ、`pref` は正式な語 `prefecture` にする。`city`・`town` の中身は NJA の定義のまま
+- `block` は NJA の `addr`。日本郵便の郵便番号・デジタルアドレス API の `block_name`（説明は「番地等文字列」、英語の説明は "block name"。API 仕様書 1.1.0.260723、2026-09-28 確認）に名前を合わせた。住居表示の地域では「街区符号-住居番号」（例 `21-3`）、地番の地域では地番（例 `3060-1`）。地番の地域では、道路で囲まれた街区ではなく一筆の土地を指す。OSM の `addr:block_number` とは指すものが違う（英語版 wiki は道路で囲まれた区域の番号、日本語版 wiki は「街区符号または番地」で、住居番号・枝番号は `addr:housenumber` に分ける。2026-09-28 確認）
+- `unmatched` は、データで確かめられなかった住所の残り。中身は NJA の `other`（NJA 3.1.3 の README の説明は「正規化できなかった文字列」）と同じ種類のものだが、建物部は `building` に切り出してある。`split` が `'unresolved'` のときは、建物部を含む残り全部が入る。名前は abr-geocoder 3.x の `unmatched_address`（3.0.51 で確認。照合できなかった部分。型は文字列の配列）と同じ語にした。日本郵便の API の `other_name`（説明は「その他住所文字列」、英語の説明は "Building number, room number, and other details"）と紛れないように `other` を使わない
+- `nja` の中の `addr`・`other` は NJA の名前のまま（NJA の結果そのものなので変えない）
+- 字形は、ガード付き NFKC（`@arihirookazaki/normalize-core`）をかけた後の文字列。`prefecture`〜`block` は NJA が返すマスターの表記
 - `codes.lgCode` は全国地方公共団体コード（6桁の文字列）。JAv2 の市区町村コードは数値で先頭のゼロが落ちているので、6桁にそろえる（札幌市中央区 `11011` → `011011`）。`codes.machiazaId` は町字 ID（7桁の文字列）
 - `nja` は NJA の結果をそのまま入れる。NJA の版によって形が変わりうる
 - 公開する値は `AddressNormalizer`（モジュールオブジェクト、規約 §2.1）と `NormalizeAddressError` だけ。型は `AddressNormalizer`・`AddressNormalizerOptions`・`AddressResult`・`AddressStyle` と、normalize-core の `CharStyle`・`CharTarget`・`WidthMode` を再公開する。関数（`applyCharStyle` など）は再公開しない
@@ -72,17 +75,17 @@ export interface AddressResult {
      - 直前が `号` `地`（直後の字を問わない）
      - 直前が数字・漢数字・`番` `目` で、直後が数字・`号` `番` `地` のどれでもない
 7. 手順4と6で使う定義
-   - 前半の住所の末尾は、NJA の `number` と、`other` の末尾の住所の接尾語（手順5。1回）を落としたものを、空でないものだけ `-` でつないだもの
-   - `building` は、後半の前後の空白を落とし、先頭の横棒（NJA 3.1.3 が横棒として扱う字。normalize-core の `HORIZONTAL_BAR` と同じ字の集合で、長音 `ー` を含む。続いていればすべて）を落とし、さらに前後の空白を落としたもの。建物名が `ー` で始まることは実質ないと判断した。手順6でこれが空になったら `split: 'none'`、`building` は `''`、`other` は全体の結果のまま
-8. 一致する位置が無ければ `split: 'unresolved'`。`building` は `''`、`other` は全体の結果のまま
+   - 前半の住所の末尾は、NJA の `addr` と、`other` の末尾の住所の接尾語（手順5。1回）を落としたものを、空でないものだけ `-` でつないだもの
+   - `building` は、後半の前後の空白を落とし、先頭の横棒（NJA 3.1.3 が横棒として扱う字。normalize-core の `HORIZONTAL_BAR` と同じ字の集合で、長音 `ー` を含む。続いていればすべて）を落とし、さらに前後の空白を落としたもの。建物名が `ー` で始まることは実質ないと判断した。手順6でこれが空になったら `split: 'none'`、`building` は `''`、`unmatched` は全体の結果（NJA の `other`）のまま
+8. 一致する位置が無ければ `split: 'unresolved'`。`building` は `''`、`unmatched` は全体の結果（NJA の `other`）のまま
 
 出力の項目は次の結果から取る。
 
-| 項目                                              | 手順4で切ったとき | それ以外                                            |
-| ------------------------------------------------- | ----------------- | --------------------------------------------------- |
-| `prefecture`〜`number`・`level`・`point`・`codes` | 前半の結果        | 全体の結果（手順2）                                 |
-| `other`                                           | 前半の結果        | 手順6で切ったときは前半の結果、それ以外は全体の結果 |
-| `nja`                                             | 全体の結果        | 全体の結果                                          |
+| 項目                                             | 手順4で切ったとき | それ以外                                            |
+| ------------------------------------------------ | ----------------- | --------------------------------------------------- |
+| `prefecture`〜`block`・`level`・`point`・`codes` | 前半の結果        | 全体の結果（手順2）                                 |
+| `unmatched`                                      | 前半の結果        | 手順6で切ったときは前半の結果、それ以外は全体の結果 |
+| `nja`                                            | 全体の結果        | 全体の結果                                          |
 
 手順4で前半の結果を使うのは、全体の結果が NJA の誤読を含みうるため（建物名の先頭の漢数字を番地に読む、空白を消して後ろの数字を番地につなげる）。
 
@@ -128,11 +131,13 @@ export interface AddressStyle {
   fields?: Partial<Record<StyledField, CharStyle | false>>; // 項目ごとの上書き
 }
 type StyledField =
-  'prefecture' | 'city' | 'town' | 'number' | 'building' | 'other';
+  'prefecture' | 'city' | 'town' | 'block' | 'building' | 'unmatched';
 ```
 
 - `CharStyle` と、その当て方（`applyCharStyle`・`mergeCharStyle`）は `@arihirookazaki/normalize-core` のもの
 - 各項目には、まずガード付き NFKC をかけ（マスターの全角 `相生１号` などを半角にそろえる）、そのあと `default` に項目ごとの指定をマージしたものを当てる。項目ごとの指定が `false` なら、字形の指定は当てない（ガード付き NFKC だけ）
+- 既定（`style` を省略したとき、またはクラスの指定を省略したとき）は、ASCII の95字（digit・alpha・symbol・space）をすべて半角にする。grep や旧来のテキストエディタで扱いやすくするため
+- ASCII に似た ASCII 以外の字（`−` U+2212、`‐` U+2010、`―` U+2015、`〜` U+301C、`’` U+2019 など）は、既定では置き換えない。ガード付き NFKC でも残る。そろえたい利用者は `chars` で指定する。このうち `−` `–` `—` `〜` は Shift_JIS（CP932）の表に無い
 - `input` には何もかけない。`nja` にもかけない
 - 字形の指定は出力の直前にだけ当てる。処理の途中（手順1〜8）は当てない
 - 検査とマージは `create` で1回だけ行う。`style`・`default`・`fields` は object、`fields` のキーは上の6項目、値は `CharStyle` か `false`。マージした指定は項目ごとに normalize-core の検査（`applyCharStyle` と同じもの）にかける
@@ -189,6 +194,7 @@ src/
 
 - この表を lint で止める。動的 `import()` も同じ
 - `NormalizeAddressError` は adapters に置く。投げるのは adapters だけで、application と domain は受け取らずにそのまま伝える。ports は型だけの層で、クラス（値）を置くと application・domain が値として import できるようになるため置かない。公開は `index.ts` が adapters から再 export する
+- ports の `ParsedAddress` の項目名は結果と同じ `block`・`unmatched` にする（同じ概念に別の名前を並べない）。NJA の `addr`・`other` から写すのは adapters だけ
 - application は `createAddressNormalizer(parser, options)` で正規化器を作る。`index.ts` の `create` はこれに NJA の AddressParser を渡すだけ
 - 型の `AddressNormalizer` は ports の interface を、`index.ts` で同名の type 別名にして公開する。同名の値（モジュールオブジェクト）と並べるため。ports から `export type { AddressNormalizer }` で再 export すると値と衝突して型チェックが落ちる（TS2323）
 - テストでは、決まった結果を返す偽の `AddressParser` を注入すれば、NJA もネットワークも使わずに手順1〜8を確かめられる。取得の失敗の判定は、偽の取得関数を渡して確かめる

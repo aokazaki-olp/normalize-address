@@ -34,7 +34,12 @@ const findBuildingStart = async (
     }
     const front = await parser.parse(text.slice(0, start));
     if (isAddressFront(whole, front, text.slice(start))) {
-      return { split: 'found', address: front, other: front.other, building };
+      return {
+        split: 'found',
+        address: front,
+        unmatched: front.unmatched,
+        building,
+      };
     }
   }
   return undefined;
@@ -48,7 +53,7 @@ const findSplit = async (
   const unsplit = (split: SplitOutcome['split']): SplitOutcome => ({
     split,
     address: whole,
-    other: whole.other,
+    unmatched: whole.unmatched,
     building: '',
   });
   if (whole.level < 3) {
@@ -68,7 +73,12 @@ const findSplit = async (
       const building = toBuilding(text.slice(position));
       return building === ''
         ? unsplit('none')
-        : { split: 'found', address: whole, other: front.other, building };
+        : {
+            split: 'found',
+            address: whole,
+            unmatched: front.unmatched,
+            building,
+          };
     }
   }
   return unsplit('unresolved');

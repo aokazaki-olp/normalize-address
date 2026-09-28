@@ -48,8 +48,8 @@ export const toParsedAddress = (result: NormalizeResult): ParsedAddress => {
     ...(result.pref === undefined ? {} : { prefecture: result.pref }),
     ...(result.city === undefined ? {} : { city: result.city }),
     ...(result.town === undefined ? {} : { town: result.town }),
-    ...(result.addr === undefined ? {} : { number: result.addr }),
-    other: result.other,
+    ...(result.addr === undefined ? {} : { block: result.addr }),
+    unmatched: result.other,
     level: toLevel(result.level),
     ...(result.point === undefined
       ? {}

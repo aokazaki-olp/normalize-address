@@ -12,7 +12,7 @@ import {
 import type { ParsedAddress } from '../../src/ports/addressParser.ts';
 
 const parsed = (fields: Partial<ParsedAddress>): ParsedAddress => ({
-  other: '',
+  unmatched: '',
   level: 3,
   raw: {},
   ...fields,
@@ -42,74 +42,74 @@ describe('splitCandidates', () => {
 });
 
 describe('wholeTail', () => {
-  it('level 8 は number が末尾で other が残り', () => {
+  it('level 8 は block が末尾で unmatched が残り', () => {
     assert.deepEqual(
-      wholeTail(parsed({ level: 8, number: '2-3', other: ' タワ-12F' })),
+      wholeTail(parsed({ level: 8, block: '2-3', unmatched: ' タワ-12F' })),
       { tail: '2-3', rest: ' タワ-12F' },
     );
   });
-  it('level 8 で other の先頭の号は残りから除く', () => {
+  it('level 8 で unmatched の先頭の号は残りから除く', () => {
     assert.deepEqual(
-      wholeTail(parsed({ level: 8, number: '3-21-5', other: '号' })),
+      wholeTail(parsed({ level: 8, block: '3-21-5', unmatched: '号' })),
       { tail: '3-21-5', rest: '' },
     );
     assert.deepEqual(
-      wholeTail(parsed({ level: 8, number: '4-8', other: '番地ビル' })),
+      wholeTail(parsed({ level: 8, block: '4-8', unmatched: '番地ビル' })),
       { tail: '4-8', rest: 'ビル' },
     );
   });
   it('番先・地先・番地先も接尾語として除く', () => {
     assert.deepEqual(
-      wholeTail(parsed({ level: 8, number: '6', other: '番先6街区' })),
+      wholeTail(parsed({ level: 8, block: '6', unmatched: '番先6街区' })),
       { tail: '6', rest: '6街区' },
     );
-    assert.deepEqual(wholeTail(parsed({ other: '4番地先数寄屋' })), {
+    assert.deepEqual(wholeTail(parsed({ unmatched: '4番地先数寄屋' })), {
       tail: '4',
       rest: '数寄屋',
     });
   });
   it('level 8 で先頭の号を除くのは1回だけ', () => {
     assert.deepEqual(
-      wholeTail(parsed({ level: 8, number: '1-9', other: '号地下1階' })),
+      wholeTail(parsed({ level: 8, block: '1-9', unmatched: '号地下1階' })),
       { tail: '1-9', rest: '地下1階' },
     );
   });
-  it('level 3 は other の先頭の番地らしい部分が末尾', () => {
-    assert.deepEqual(wholeTail(parsed({ other: '12-3-4 ビル5F' })), {
+  it('level 3 は unmatched の先頭の番地らしい部分が末尾', () => {
+    assert.deepEqual(wholeTail(parsed({ unmatched: '12-3-4 ビル5F' })), {
       tail: '12-3-4',
       rest: ' ビル5F',
     });
   });
   it('level 3 で番地らしい部分が無ければ末尾は空', () => {
-    assert.deepEqual(wholeTail(parsed({ other: 'ビル' })), {
+    assert.deepEqual(wholeTail(parsed({ unmatched: 'ビル' })), {
       tail: '',
       rest: 'ビル',
     });
   });
   it('level 3 で番地らしい部分の直後の号は残りから除く', () => {
-    assert.deepEqual(wholeTail(parsed({ other: '5-15-2号' })), {
+    assert.deepEqual(wholeTail(parsed({ unmatched: '5-15-2号' })), {
       tail: '5-15-2',
       rest: '',
     });
-    assert.deepEqual(wholeTail(parsed({ other: '28-9号2階' })), {
+    assert.deepEqual(wholeTail(parsed({ unmatched: '28-9号2階' })), {
       tail: '28-9',
       rest: '2階',
     });
   });
   it('level 3 で番地らしい部分の直後の番地は最長一致で除く', () => {
-    assert.deepEqual(wholeTail(parsed({ other: '1番地ビル' })), {
+    assert.deepEqual(wholeTail(parsed({ unmatched: '1番地ビル' })), {
       tail: '1',
       rest: 'ビル',
     });
   });
   it('番地らしい部分が無ければ号を除かない', () => {
-    assert.deepEqual(wholeTail(parsed({ other: '号室' })), {
+    assert.deepEqual(wholeTail(parsed({ unmatched: '号室' })), {
       tail: '',
       rest: '号室',
     });
   });
   it('末尾のハイフンは番地に含めない', () => {
-    assert.deepEqual(wholeTail(parsed({ other: '1-2-' })), {
+    assert.deepEqual(wholeTail(parsed({ unmatched: '1-2-' })), {
       tail: '1-2',
       rest: '-',
     });
@@ -121,75 +121,75 @@ describe('isSameAddress', () => {
     prefecture: '東京都',
     city: '渋谷区',
     town: '道玄坂一丁目',
-    number: '2-3',
+    block: '2-3',
     level: 8,
   });
   const cases: [string, Partial<ParsedAddress>, string, boolean][] = [
     [
-      'number が一致',
+      'block が一致',
       {
         prefecture: '東京都',
         city: '渋谷区',
         town: '道玄坂一丁目',
-        number: '2-3',
+        block: '2-3',
       },
       '2-3',
       true,
     ],
     [
-      'number が無く other が一致',
+      'block が無く unmatched が一致',
       {
         prefecture: '東京都',
         city: '渋谷区',
         town: '道玄坂一丁目',
-        other: '2-3',
+        unmatched: '2-3',
       },
       '2-3',
       true,
     ],
     [
-      'number と other を - でつなぐ',
+      'block と unmatched を - でつなぐ',
       {
         prefecture: '東京都',
         city: '渋谷区',
         town: '道玄坂一丁目',
-        number: '2',
-        other: '3',
+        block: '2',
+        unmatched: '3',
       },
       '2-3',
       true,
     ],
     [
-      'other の末尾の号を落として一致',
+      'unmatched の末尾の号を落として一致',
       {
         prefecture: '東京都',
         city: '渋谷区',
         town: '道玄坂一丁目',
-        other: '2-3号',
+        unmatched: '2-3号',
       },
       '2-3',
       true,
     ],
     [
-      'number と、末尾の番地を落とした other をつなぐ',
+      'block と、末尾の番地を落とした unmatched をつなぐ',
       {
         prefecture: '東京都',
         city: '渋谷区',
         town: '道玄坂一丁目',
-        number: '2',
-        other: '3番地',
+        block: '2',
+        unmatched: '3番地',
       },
       '2-3',
       true,
     ],
     [
-      '号だけの other は落として number と比べる',
+      '号だけの unmatched は落として block と比べる',
       {
         prefecture: '東京都',
         city: '渋谷区',
         town: '道玄坂一丁目',
-        number: '2-3',
-        other: '号',
+        block: '2-3',
+        unmatched: '号',
       },
       '2-3',
       true,
@@ -200,7 +200,7 @@ describe('isSameAddress', () => {
         prefecture: '東京都',
         city: '渋谷区',
         town: '道玄坂一丁目',
-        number: '2',
+        block: '2',
       },
       '2-3',
       false,
@@ -211,7 +211,7 @@ describe('isSameAddress', () => {
         prefecture: '東京都',
         city: '渋谷区',
         town: '道玄坂二丁目',
-        number: '2-3',
+        block: '2-3',
       },
       '2-3',
       false,
@@ -222,14 +222,14 @@ describe('isSameAddress', () => {
         prefecture: '東京都',
         city: '港区',
         town: '道玄坂一丁目',
-        number: '2-3',
+        block: '2-3',
       },
       '2-3',
       false,
     ],
     [
       '都道府県が違う',
-      { city: '渋谷区', town: '道玄坂一丁目', number: '2-3' },
+      { city: '渋谷区', town: '道玄坂一丁目', block: '2-3' },
       '2-3',
       false,
     ],
@@ -324,9 +324,14 @@ describe('isAddressFront', () => {
     city: '札幌市中央区',
     town: '南三条西三丁目',
   };
-  const level3 = parsed({ ...area, other: '10-3信ビル4階' });
-  const level8 = parsed({ ...area, number: '10-3', other: '信ビル', level: 8 });
-  const noTail = parsed({ ...area, other: '字北ノ作305-5クレオビル2F' });
+  const level3 = parsed({ ...area, unmatched: '10-3信ビル4階' });
+  const level8 = parsed({
+    ...area,
+    block: '10-3',
+    unmatched: '信ビル',
+    level: 8,
+  });
+  const noTail = parsed({ ...area, unmatched: '字北ノ作305-5クレオビル2F' });
   const cases: [
     string,
     ParsedAddress,
@@ -337,251 +342,257 @@ describe('isAddressFront', () => {
     [
       '地域が一致し末尾がある（level 3）',
       level3,
-      { ...area, other: '10' },
+      { ...area, unmatched: '10' },
       'ビル',
       true,
     ],
     [
       '住所の末尾が全体と違ってもよい',
       level3,
-      { ...area, number: '10-2', level: 8 },
+      { ...area, block: '10-2', level: 8 },
       'ビル',
       true,
     ],
-    ['住所の末尾が空', level3, { ...area, other: '' }, 'ビル', false],
-    ['住所の末尾が号だけ', level3, { ...area, other: '号' }, 'ビル', false],
+    ['住所の末尾が空', level3, { ...area, unmatched: '' }, 'ビル', false],
+    ['住所の末尾が号だけ', level3, { ...area, unmatched: '号' }, 'ビル', false],
     [
       'level が 3 未満',
       level3,
-      { ...area, other: '10', level: 2 },
+      { ...area, unmatched: '10', level: 2 },
       'ビル',
       false,
     ],
     [
       '町字が違う',
       level3,
-      { ...area, town: '南三条西四丁目', other: '10' },
+      { ...area, town: '南三条西四丁目', unmatched: '10' },
       'ビル',
       false,
     ],
     [
-      'P1：other に建物名が残る',
+      'P1：unmatched に建物名が残る',
       level3,
-      { ...area, other: '10 AKASAKA' },
+      { ...area, unmatched: '10 AKASAKA' },
       'HILLS',
       false,
     ],
     [
-      'P1：level 8 の前半の other は空でなければならない',
+      'P1：level 8 の前半の unmatched は空でなければならない',
       level3,
-      { ...area, number: '10', other: 'AKASAKA', level: 8 },
+      { ...area, block: '10', unmatched: 'AKASAKA', level: 8 },
       'HILLS',
       false,
     ],
     [
-      'P1：other がハイフンで終わる',
+      'P1：unmatched がハイフンで終わる',
       level3,
-      { ...area, other: '2-107-' },
+      { ...area, unmatched: '2-107-' },
       '716',
       false,
     ],
     [
       'P1：番地の間の 番・の は読み切れている',
       level3,
-      { ...area, other: '17番の2' },
+      { ...area, unmatched: '17番の2' },
       'ビル',
       true,
     ],
     [
       'P1：番地の間の 番- と末尾の号',
       level3,
-      { ...area, other: '2番-21号' },
+      { ...area, unmatched: '2番-21号' },
       'ビル',
       true,
     ],
     [
-      'P1：全体の末尾が空なら、全体の other の先頭と一致し数字で終わる',
+      'P1：全体の末尾が空なら、全体の unmatched の先頭と一致し数字で終わる',
       noTail,
-      { ...area, other: '字北ノ作305-5' },
+      { ...area, unmatched: '字北ノ作305-5' },
       'クレオビル2F',
       true,
     ],
     [
-      'P1：全体の末尾が空なら、全体の other の先頭の短い部分でもよい',
+      'P1：全体の末尾が空なら、全体の unmatched の先頭の短い部分でもよい',
       noTail,
-      { ...area, other: '字北ノ作305' },
+      { ...area, unmatched: '字北ノ作305' },
       ' ビル',
       true,
     ],
     [
-      'P1：全体の末尾が空で、全体の other の先頭と一致しない',
+      'P1：全体の末尾が空で、全体の unmatched の先頭と一致しない',
       noTail,
-      { ...area, other: '字南ノ作305' },
+      { ...area, unmatched: '字南ノ作305' },
       'ビル',
       false,
     ],
     [
-      'P1：全体の末尾が空で、前半の other が数字で終わらない',
+      'P1：全体の末尾が空で、前半の unmatched が数字で終わらない',
       noTail,
-      { ...area, other: '字北ノ作305-5クレオ' },
+      { ...area, unmatched: '字北ノ作305-5クレオ' },
       'ビル2F',
       false,
     ],
     [
       'P2：建物部が 地＋数字 で始まる',
       level3,
-      { ...area, other: '9' },
+      { ...area, unmatched: '9' },
       '地9 ビル',
       false,
     ],
     [
       'P2：建物部が の＋数字 で始まる',
       level3,
-      { ...area, other: '6' },
+      { ...area, unmatched: '6' },
       'の4ビル',
       false,
     ],
     [
       'P2：建物部が ー＋数字 で始まる',
       level3,
-      { ...area, other: '1646' },
+      { ...area, unmatched: '1646' },
       'ー1',
       false,
     ],
     [
       'P2：建物部が 線 で始まる',
       level3,
-      { ...area, other: '1' },
+      { ...area, unmatched: '1' },
       '線2号',
       false,
     ],
     [
       'P2：先頭のハイフンは落としてから見る',
       level3,
-      { ...area, other: '10' },
+      { ...area, unmatched: '10' },
       '-202号室',
       true,
     ],
     [
       'P3：全体が level 8 で前半が level 3 なら受け入れない',
       level8,
-      { ...area, other: '10' },
+      { ...area, unmatched: '10' },
       '3FUNDES',
       false,
     ],
     [
       'P3：建物部が漢数字で始まれば受け入れる',
       level8,
-      { ...area, other: '10' },
+      { ...area, unmatched: '10' },
       '三信ビル',
       true,
     ],
     [
       'P3：空白で始まれば受け入れる',
       level8,
-      { ...area, other: '10' },
+      { ...area, unmatched: '10' },
       ' 2階',
       true,
     ],
     [
       'P3：空白で始まっても、先頭の数字が全体の番地の続きなら受け入れない',
       level8,
-      { ...area, other: '10' },
+      { ...area, unmatched: '10' },
       ' 3号棟',
       false,
     ],
     [
       'P3：前半も level 8 なら受け入れる',
       level8,
-      { ...area, number: '10', level: 8 },
+      { ...area, block: '10', level: 8 },
       '3階',
       true,
     ],
   ];
   cases.push(
-    ['P1：数字の間の 区', level3, { ...area, other: '2区300-2' }, 'ビル', true],
-    ['P1：末尾の番先', level3, { ...area, other: '1番先' }, 'ビル', true],
     [
-      'P1：level 8 の前半の other が接尾語だけ',
+      'P1：数字の間の 区',
       level3,
-      { ...area, number: '6', other: '番先', level: 8 },
+      { ...area, unmatched: '2区300-2' },
+      'ビル',
+      true,
+    ],
+    ['P1：末尾の番先', level3, { ...area, unmatched: '1番先' }, 'ビル', true],
+    [
+      'P1：level 8 の前半の unmatched が接尾語だけ',
+      level3,
+      { ...area, block: '6', unmatched: '番先', level: 8 },
       '6街区',
       true,
     ],
     [
       'P2：建物部が 番先＋数字 で始まる',
       level3,
-      { ...area, other: '6' },
+      { ...area, unmatched: '6' },
       '番先6街区',
       false,
     ],
     [
       'P2：横棒の後ろの数字だけは枝番',
       level3,
-      { ...area, other: '1646' },
+      { ...area, unmatched: '1646' },
       'ー1',
       false,
     ],
     [
       'P2：横棒の後ろの 数字＋F＋英字 は番地の続き',
       level3,
-      { ...area, other: '17' },
+      { ...area, unmatched: '17' },
       'ー1FAビレッジ',
       false,
     ],
     [
       'P2：横棒の後ろの 数字＋F＋記号 は階',
       level3,
-      { ...area, other: '8-13' },
+      { ...area, unmatched: '8-13' },
       '-4F-CD号室',
       true,
     ],
     [
       'P2：横棒の後ろの 数字＋階＋英字 は階',
       level3,
-      { ...area, other: '15-7' },
+      { ...area, unmatched: '15-7' },
       '-1階B',
       true,
     ],
     [
       'P3：空白の無い階の形は受け入れない（前半が level 8 未満）',
       level8,
-      { ...area, other: '10' },
+      { ...area, unmatched: '10' },
       '-3F',
       false,
     ],
     [
       'P3：空白の後ろの階の形は、番地の続きに見えても受け入れる',
       level8,
-      { ...area, other: '10' },
+      { ...area, unmatched: '10' },
       ' 3階',
       true,
     ],
     [
       'P3：空白の後ろでも F の直後が英字なら階でない',
       level8,
-      { ...area, other: '10' },
+      { ...area, unmatched: '10' },
       ' 3FUSHI',
       false,
     ],
     [
       'P3：空白の後ろでも F の直後が & なら階でない',
       level8,
-      { ...area, other: '10' },
+      { ...area, unmatched: '10' },
       ' 3F&Gビル',
       false,
     ],
     [
       'P3：空白の後ろでも F の直後が片仮名なら階でない',
       level8,
-      { ...area, other: '10' },
+      { ...area, unmatched: '10' },
       ' 3Fビル1F',
       false,
     ],
     [
       'P3：空白の後ろで F の直後が ( なら階',
       level8,
-      { ...area, other: '10' },
+      { ...area, unmatched: '10' },
       ' 3F(77号室)',
       true,
     ],
