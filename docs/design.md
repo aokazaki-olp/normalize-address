@@ -1,16 +1,18 @@
 # normalize-address 設計
 
-日本の住所を正規化する。住所の解析は NJA（`@geolonia/normalize-japanese-addresses` 3.1.3）に任せ、建物部を入力から取り直す。系列全体の設計と決定の経緯は作業場所の `docs/design.md` にある。
+日本の住所を正規化する。住所の解析は NJA（`@geolonia/normalize-japanese-addresses` 3.1.3）に任せ、建物部は、入力にガード付き NFKC をかけたテキストから切り出す。系列全体の設計と決定の経緯は作業場所の `docs/design.md` にある。
 
 補助資料：[japanese-address-structure.md](japanese-address-structure.md)（住所の構造と訳語）、[nja-3.1.3-char-rules.md](nja-3.1.3-char-rules.md)（NJA 3.1.3 の文字の扱い）
 
 ## 公開 API
 
 ```ts
-export const AddressNormalizer = { create };
+export const AddressNormalizer: AddressNormalizerFactory = { create };
 
-// 住所の正規化器を作る。options は create のときに1回だけ検査・準備する
-const create: (options?: AddressNormalizerOptions) => AddressNormalizer;
+interface AddressNormalizerFactory {
+  // 住所の正規化器を作る。options は create のときに1回だけ検査・準備する
+  create(options?: AddressNormalizerOptions): AddressNormalizer;
+}
 
 export interface AddressNormalizer {
   normalize(input: string): Promise<AddressResult>;
@@ -60,7 +62,8 @@ export interface AddressPoint {
 - `nja` の型は `Readonly<Record<string, unknown>>` のままにする。NJA の版によって形が変わりうるので、スキーマを型に固定しない（規約 §2.7 の「スキーマが本当に存在しない場合は `unknown` のまま」）
 - 公開する値は `AddressNormalizer`（モジュールオブジェクト、規約 §2.1）と `NormalizeAddressError` だけ。型は `AddressNormalizer`・`AddressNormalizerOptions`・`AddressResult`・`AddressStyle`・`AddressLevel`・`AddressPoint` と、normalize-core の `CharStyle`・`CharTarget`・`WidthMode` を再公開する。関数（`applyCharStyle` など）は再公開しない
 - `create` は options を1回だけ検査・準備する（字形の指定の検査と、`default` と項目ごとの指定のマージ）。options が検査を満たさなければ `create` が `TypeError` を投げ、`normalize` は呼ぶ前から使えない。準備したものは写しなので、`create` のあとで options を書き換えても正規化器には効かない
-- NJA の設定・取得処理の差し替え（下記「失敗の扱い」）・住所データのキャッシュはプロセスに1つで、`create` を何回呼んでもすべての正規化器で共有される。取得先（エンドポイント）などは `create` の引数に入れない
+- 値の `AddressNormalizer` は ports の `AddressNormalizerFactory`（`create` を持つ interface。TSDoc はそのメソッドに付ける）で型を注釈する。短縮記法の `{ create }` に付けた TSDoc は tsc が出力する `dist/index.d.ts` に届かないため。`AddressNormalizerFactory` は利用者が名前で使う必要が無いので公開の型に入れない（`typeof AddressNormalizer` で取れる）
+- NJA の設定・取得処理の差し替え（下記「失敗の扱い」）・住所データのキャッシュはモジュールの読み込み単位に1つ（worker_threads の worker ごとに別）で、`create` を何回呼んでもすべての正規化器で共有される。取得先（エンドポイント）などは `create` の引数に入れない
 - `create` の入力の誤り（options が object でない、`nja`・`codes` が boolean でない、字形の指定が検査を満たさない）と、`normalize` の入力の誤り（引数が文字列でない）は `TypeError`。それ以外で処理を終えられなかったもの（住所データの取得の失敗、NJA の処理の失敗）は `normalize` が `NormalizeAddressError` を投げる。原因は `cause` を見る（下記「失敗の扱い」）
 
 ## 処理の流れ
