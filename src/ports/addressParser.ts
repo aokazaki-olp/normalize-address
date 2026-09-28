@@ -25,5 +25,5 @@ export interface ParsedAddress {
 
 /** 住所の文字列を解析する */
 export interface AddressParser {
-  parse(text: string): Promise<ParsedAddress>;
+  parse: (text: string) => Promise<ParsedAddress>;
 }

@@ -11,11 +11,11 @@ export const AddressNormalizer: AddressNormalizerFactory = { create };
 
 interface AddressNormalizerFactory {
   // 住所の正規化器を作る。options は create のときに1回だけ検査・準備する
-  create(options?: AddressNormalizerOptions): AddressNormalizer;
+  create: (options?: AddressNormalizerOptions) => AddressNormalizer;
 }
 
 export interface AddressNormalizer {
-  normalize(input: string): Promise<AddressResult>;
+  normalize: (input: string) => Promise<AddressResult>;
 }
 
 export interface AddressNormalizerOptions {
@@ -66,6 +66,7 @@ export interface AddressPoint {
 - `nja` の型は `Readonly<Record<string, unknown>>` のままにする。NJA の版によって形が変わりうるので、スキーマを型に固定しない（規約 §2.7 の「スキーマが本当に存在しない場合は `unknown` のまま」）
 - 公開する値は `AddressNormalizer`（モジュールオブジェクト、規約 §2.1）と `NormalizeAddressError` だけ。型は `AddressNormalizer`・`AddressNormalizerOptions`・`AddressResult`・`AddressStyle`・`AddressLevel`・`AddressPoint` と、normalize-core の `CharStyle`・`CharTarget`・`WidthMode` を再公開する。関数（`applyCharStyle` など）は再公開しない。`SplitStatus` は利用者が名前で使う必要が無いので公開の型に入れない（`AddressResult['split']` で取れる）
 - `create` は options を1回だけ検査・準備する（字形の指定の検査と、`default` と項目ごとの指定のマージ）。options が検査を満たさなければ `create` が `TypeError` を投げ、`normalize` は呼ぶ前から使えない。準備したものは写しなので、`create` のあとで options を書き換えても正規化器には効かない
+- 公開の interface の関数はプロパティの形で宣言する（利用者の lint の unbound-method に当たらないように。実装は this を使わないので、取り出して渡してよい）。非公開の `AddressParser.parse` も同じ形にそろえる
 - 値の `AddressNormalizer` は ports の `AddressNormalizerFactory`（`create` を持つ interface。TSDoc はそのメソッドに付ける）で型を注釈する。短縮記法の `{ create }` に付けた TSDoc は tsc が出力する `dist/index.d.ts` に届かないため。`AddressNormalizerFactory` は利用者が名前で使う必要が無いので公開の型に入れない（`typeof AddressNormalizer` で取れる）。この interface の TSDoc に実装（NJA）の事情を書くのは、d.ts に届く場所がここだけで、実装が1つのため（規約 §2.8 の例外）
 - NJA の設定・取得処理の差し替え（下記「失敗の扱い」）・住所データのキャッシュはモジュールの読み込み単位に1つ（worker_threads の worker ごとに別）で、`create` を何回呼んでもすべての正規化器で共有される。取得先（エンドポイント）などは `create` の引数に入れない
 - `create` の入力の誤り（options が object でない、`nja`・`codes` が boolean でない、字形の指定が検査を満たさない）と、`normalize` の入力の誤り（引数が文字列でない）は `TypeError`。それ以外で処理を終えられなかったもの（住所データの取得の失敗、NJA の処理の失敗）は `normalize` が `NormalizeAddressError` を投げる。原因は `url`・`status`・`cause` を見る（下記「失敗の扱い」）

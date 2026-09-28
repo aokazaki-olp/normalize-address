@@ -21,7 +21,7 @@ export interface AddressNormalizer {
    *   原因は url・status・cause を見る（HTTP のステータスの失敗は url・status に、元の例外があるときは cause に入る。NJA が想定外の level を返したときはどれも無い）。
    *   一時的な失敗（ネットワークの失敗、本文の途中の切断など）を含むので、再試行してよい。同じ失敗が続くこともある。判定は `error.name === 'NormalizeAddressError'` で行える
    */
-  normalize(input: string): Promise<AddressResult>;
+  normalize: (input: string) => Promise<AddressResult>;
 }
 
 /** 住所の正規化器を作るもの */
@@ -40,5 +40,5 @@ export interface AddressNormalizerFactory {
    * @returns 住所の正規化器
    * @throws {TypeError} options が object でない場合、nja・codes が boolean でない場合、または字形の指定が検査を満たさない場合
    */
-  create(options?: AddressNormalizerOptions): AddressNormalizer;
+  create: (options?: AddressNormalizerOptions) => AddressNormalizer;
 }
