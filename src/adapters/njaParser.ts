@@ -15,6 +15,7 @@ import type {
   ParsedAddress,
 } from '../ports/addressParser.ts';
 import { createCheckedHttp } from './checkedHttp.ts';
+import { NormalizeAddressError } from './normalizeAddressError.ts';
 
 const LEVELS: readonly AddressLevel[] = [0, 1, 2, 3, 8];
 const LG_CODE_LENGTH = 6;
@@ -22,7 +23,11 @@ const LG_CODE_LENGTH = 6;
 const toLevel = (level: number): AddressLevel => {
   const found = LEVELS.find((candidate) => candidate === level);
   if (found === undefined) {
-    throw new Error(`NJA が想定外の level を返しました: ${String(level)}`);
+    throw new NormalizeAddressError(
+      `NJA が想定外の level を返しました: ${String(level)}`,
+      undefined,
+      undefined,
+    );
   }
   return found;
 };
@@ -34,7 +39,7 @@ const toLevel = (level: number): AddressLevel => {
  *
  * @param result - NJA の結果
  * @returns 解析の結果
- * @throws {Error} level が 0・1・2・3・8 のどれでもない場合
+ * @throws {NormalizeAddressError} level が 0・1・2・3・8 のどれでもない場合
  */
 export const toParsedAddress = (result: NormalizeResult): ParsedAddress => {
   const cityCode = result.metadata.city?.code;

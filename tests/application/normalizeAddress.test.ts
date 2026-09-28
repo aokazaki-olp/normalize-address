@@ -295,6 +295,16 @@ describe('normalizeAddress', () => {
     assert.equal(parser.calls.length, 0);
   });
 
+  it('字形の指定が検査を満たさなければ TypeError', async () => {
+    const parser = createFakeParser({ 東京都: { prefecture: '東京都' } });
+    await assert.rejects(
+      createNormalizeAddress(parser)('東京都', {
+        style: { default: { chars: { ab: 'x' } } },
+      }),
+      TypeError,
+    );
+  });
+
   it('解析の失敗はそのまま伝える', async () => {
     const failure = new Error('取得の失敗');
     const normalize = createNormalizeAddress({

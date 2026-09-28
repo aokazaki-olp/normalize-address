@@ -38,7 +38,7 @@ export interface AddressResult {
 - 字形は、ガード付き NFKC（`@arihirookazaki/normalize-core`）をかけた後の文字列。`prefecture`〜`number` は NJA が返すマスターの表記
 - `codes.lgCode` は全国地方公共団体コード（6桁の文字列）。JAv2 の市区町村コードは数値で先頭のゼロが落ちているので、6桁にそろえる（札幌市中央区 `11011` → `011011`）。`codes.machiazaId` は町字 ID（7桁の文字列）
 - `nja` は NJA の結果をそのまま入れる。NJA の版によって形が変わりうる
-- 引数が文字列でなければ `TypeError`。住所データの取得に失敗したら `AddressDataError` を投げる（下記）
+- 入力の誤り（引数が文字列でない、字形の指定が検査を満たさない）は `TypeError`。それ以外で処理を終えられなかったものは `NormalizeAddressError` を投げる（下記「失敗の扱い」）
 
 ## 処理の流れ
 
@@ -131,10 +131,32 @@ type StyledField =
 
 ## 失敗の扱い
 
-NJA 3.1.3 は取得した応答が正常かを確かめず、住居表示・地番のデータでエラーが返ると例外にならずに level 3 に落ち、その結果がキャッシュされる。NJA が公開している `requestHandlers.http` を差し替え、次を失敗として `AddressDataError`（URL とステータスを持つ）を投げる。
+例外は2種類に分ける。
 
-- 範囲指定の取得（住居表示・地番の `.txt`）で `206` 以外
-- それ以外の取得で 2xx 以外
+- `TypeError`：入力の誤りだけ（引数が文字列でない、字形の指定が検査を満たさない）。同じ入力で再試行しても同じ
+- `NormalizeAddressError`：それ以外で、正規化器が処理を終えられなかったもの。その入力をあとで再試行する価値がある（ただし NJA の想定外の level は、再試行しても同じ）
+
+```ts
+export class NormalizeAddressError extends Error {
+  readonly name: 'NormalizeAddressError';
+  readonly url: string | undefined; // 取得の失敗のとき、取得した URL（API キーを書き足す前）
+  readonly status: number | undefined; // HTTP の応答があったときのステータス
+  // 元の例外は cause（ErrorOptions）に入れる
+}
+```
+
+利用者は `instanceof` ではなく `name` で判定できる（`error.name === 'NormalizeAddressError'`）。`instanceof` は realm を跨ぐと誤判定し、同じクラスが別の複製として読み込まれたときも一致しないため（規約 §6.2）。
+
+`NormalizeAddressError` を投げるのは次のとき。
+
+| 場面                                                                                                  | `url` | `status` | `cause`  |
+| ----------------------------------------------------------------------------------------------------- | ----- | -------- | -------- |
+| 住所データの範囲指定の取得（住居表示・地番の `.txt`）で `206` 以外                                    | あり  | あり     | なし     |
+| 住所データのそれ以外の取得で 2xx 以外                                                                 | あり  | あり     | なし     |
+| 取得処理そのものが例外を投げた（Node の fetch の `TypeError: fetch failed` などのネットワークの失敗） | あり  | なし     | 元の例外 |
+| NJA が想定外の level（0・1・2・3・8 以外）を返した                                                    | なし  | なし     | なし     |
+
+NJA 3.1.3 は取得した応答が正常かを確かめず、住居表示・地番のデータでエラーが返ると例外にならずに level 3 に落ち、その結果がキャッシュされる。NJA が公開している `requestHandlers.http` を差し替え、上の取得の失敗を検査して `NormalizeAddressError` を投げる。取得処理が投げた例外もここで包む（包まないと `TypeError` として出て、入力の誤りと区別できない）。
 
 `requestHandlers` はモジュール全体で1つなので、差し替えは最初の呼び出しの前に1回だけ行う。同じプロセスで NJA を直接使う別のコードがあれば、その挙動も変わる。
 
@@ -146,7 +168,7 @@ src/
   application/   処理の流れ（手順1〜8）。ports の AddressParser だけを通して解析する
   domain/        純粋な処理（切れ目の候補、建物部の始まりの位置と abrg の規則の移植、住所の末尾、結果の比較と組み立て）
   ports/         インターフェース（AddressParser）と型だけ
-  adapters/      外部との接続。NJA と取得の失敗の判定
+  adapters/      外部との接続。NJA と取得の失敗の判定、NormalizeAddressError
 ```
 
 | 層             | import してよい他の層            | import してよい外部                                |
@@ -158,6 +180,7 @@ src/
 | `adapters/`    | `ports`                          | すべて（NJA、`node:` のモジュールなど）            |
 
 - この表を lint で止める。動的 `import()` も同じ
+- `NormalizeAddressError` は adapters に置く。投げるのは adapters だけで、application と domain は受け取らずにそのまま伝える。ports は型だけの層で、クラス（値）を置くと application・domain が値として import できるようになるため置かない。公開は `index.ts` が adapters から再 export する
 - テストでは、決まった結果を返す偽の `AddressParser` を注入すれば、NJA もネットワークも使わずに手順1〜8を確かめられる。取得の失敗の判定は、偽の取得関数を渡して確かめる
 
 ## 依存

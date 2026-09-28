@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { AddressDataError } from '../../src/adapters/addressDataError.ts';
 import {
   createCheckedHttp,
   type HttpResponse,
   type RangeOptions,
 } from '../../src/adapters/checkedHttp.ts';
+import { NormalizeAddressError } from '../../src/adapters/normalizeAddressError.ts';
 
 const fakeHandler = (status: number) => {
   const cancelled: boolean[] = [];
@@ -57,17 +57,18 @@ describe('createCheckedHttp', () => {
     ['範囲指定の 0 バイト目からの 500', 500, { offset: 0, length: 1 }],
   ];
   for (const [name, status, options] of fails) {
-    it(`${name} は AddressDataError`, async () => {
+    it(`${name} は NormalizeAddressError`, async () => {
       const { handler, cancelled } = fakeHandler(status);
       const url = new URL(URL_TEXT);
       await assert.rejects(
         createCheckedHttp(handler)(url, options),
         (error) => {
-          assert.ok(error instanceof AddressDataError);
-          assert.equal(error.name, 'AddressDataError');
+          assert.ok(error instanceof NormalizeAddressError);
+          assert.equal(error.name, 'NormalizeAddressError');
           assert.equal(error.status, status);
           assert.equal(error.url, new URL(URL_TEXT).toString());
           assert.equal(error.message.includes('secret'), false);
+          assert.equal(error.cause, undefined);
           return true;
         },
       );
@@ -75,25 +76,49 @@ describe('createCheckedHttp', () => {
     });
   }
 
-  it('本文が無い応答でも AddressDataError', async () => {
+  it('本文が無い応答でも NormalizeAddressError', async () => {
     const handler = async (): Promise<HttpResponse> => ({
       status: 500,
       body: null,
     });
     await assert.rejects(
       createCheckedHttp(handler)(new URL(URL_TEXT)),
-      AddressDataError,
+      NormalizeAddressError,
     );
   });
 
-  it('取得処理の例外はそのまま伝える', async () => {
+  it('取得処理の例外は cause に入れた NormalizeAddressError にする', async () => {
     const failure = new TypeError('fetch failed');
-    const handler = async (): Promise<HttpResponse> => {
+    const handler = async (url: URL): Promise<HttpResponse> => {
+      url.search = '?geolonia-api-key=secret';
       throw failure;
     };
     await assert.rejects(
+      createCheckedHttp(handler)(new URL(URL_TEXT), RANGE),
+      (error) => {
+        assert.ok(error instanceof NormalizeAddressError);
+        assert.equal(error.name, 'NormalizeAddressError');
+        assert.equal(error.status, undefined);
+        assert.equal(error.url, new URL(URL_TEXT).toString());
+        assert.equal(error.message.includes('secret'), false);
+        assert.equal(error.cause, failure);
+        return true;
+      },
+    );
+  });
+
+  it('Error でない値が投げられても cause に残す', async () => {
+    const handler = async (): Promise<HttpResponse> => {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- Error でない値を投げる取得処理を再現する
+      throw 'network down';
+    };
+    await assert.rejects(
       createCheckedHttp(handler)(new URL(URL_TEXT)),
-      failure,
+      (error) => {
+        assert.ok(error instanceof NormalizeAddressError);
+        assert.equal(error.cause, 'network down');
+        return true;
+      },
     );
   });
 });

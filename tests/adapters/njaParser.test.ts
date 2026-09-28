@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import type { NormalizeResult } from '@geolonia/normalize-japanese-addresses';
 
 import { toParsedAddress } from '../../src/adapters/njaParser.ts';
+import { NormalizeAddressError } from '../../src/adapters/normalizeAddressError.ts';
 
 const SAPPORO = {
   pref: '北海道',
@@ -58,8 +59,18 @@ describe('toParsedAddress', () => {
   });
 
   for (const level of [4, 7, 9, -1, 3.5]) {
-    it(`level ${String(level)} は Error`, () => {
-      assert.throws(() => toParsedAddress({ ...SAPPORO, level }), Error);
+    it(`level ${String(level)} は NormalizeAddressError`, () => {
+      assert.throws(
+        () => toParsedAddress({ ...SAPPORO, level }),
+        (error) => {
+          assert.ok(error instanceof NormalizeAddressError);
+          assert.equal(error.name, 'NormalizeAddressError');
+          assert.equal(error.url, undefined);
+          assert.equal(error.status, undefined);
+          assert.equal(error.cause, undefined);
+          return true;
+        },
+      );
     });
   }
 });
