@@ -7,15 +7,12 @@
 import { guardedNfkc } from '@arihirookazaki/normalize-core';
 import { buildResult } from '../domain/buildResult.ts';
 import { prepareOptions } from '../domain/options.ts';
-import {
-  buildingStarts,
-  isAddressFront,
-  isSameAddress,
-  splitCandidates,
-  toBuilding,
-  wholeTail,
-  type SplitOutcome,
-} from '../domain/split.ts';
+import { isAddressFront, isSameAddress } from '../domain/split/acceptance.ts';
+import { wholeTail } from '../domain/split/addressTail.ts';
+import { toBuilding } from '../domain/split/building.ts';
+import { buildingStarts } from '../domain/split/buildingStart.ts';
+import { splitCandidates } from '../domain/split/candidates.ts';
+import type { SplitOutcome } from '../domain/split/outcome.ts';
 import type { AddressParser, ParsedAddress } from '../ports/addressParser.ts';
 import type {
   AddressNormalizer,

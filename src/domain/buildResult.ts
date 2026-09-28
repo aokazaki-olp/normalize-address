@@ -12,7 +12,7 @@ import {
 import type { ParsedAddress } from '../ports/addressParser.ts';
 import type { AddressResult, StyledField } from '../ports/addressResult.ts';
 import type { PreparedOptions } from './options.ts';
-import type { SplitOutcome } from './split.ts';
+import type { SplitOutcome } from './split/outcome.ts';
 
 /**
  * 項目に字形の指定を当てる

@@ -199,6 +199,20 @@ src/
 - 型の `AddressNormalizer` は ports の interface を、`index.ts` で同名の type 別名にして公開する。同名の値（モジュールオブジェクト）と並べるため。ports から `export type { AddressNormalizer }` で再 export すると値と衝突して型チェックが落ちる（TS2323）
 - テストでは、決まった結果を返す偽の `AddressParser` を注入すれば、NJA もネットワークも使わずに手順1〜8を確かめられる。取得の失敗の判定は、偽の取得関数を渡して確かめる
 
+`domain/split/` は、住所部と建物部の切れ目を決める処理を関心事ごとに分けたもの。domain の外からは各ファイルを直接 import する（束ねるファイルは置かない）。
+
+| ファイル           | 関心事                                                                                        | 手順                          |
+| ------------------ | --------------------------------------------------------------------------------------------- | ----------------------------- |
+| `rules.ts`         | 規則のデータ（住所の接尾語・漢数字・横棒・階の形など）と、それから組み立てた正規表現          | 4〜7                          |
+| `buildingStart.ts` | 建物部の始まりの位置の候補（abrg の規則の出力から元のテキストの位置への対応づけ、独自の規則） | 4（「建物部の始まりの位置」） |
+| `acceptance.ts`    | 手順4の受け入れ条件と、手順6の前半が全体と同じ住所を指すかの判定                              | 4・6                          |
+| `addressTail.ts`   | 全体の住所の末尾と残り、前半の住所の末尾                                                      | 5・7                          |
+| `candidates.ts`    | 切れ目の候補                                                                                  | 6                             |
+| `building.ts`      | 後半から `building` を取り出す                                                                | 7                             |
+| `outcome.ts`       | 切れ目の探索の結果（出力の表のどの結果を使うか）                                              | 3〜8                          |
+
+`acceptance.ts` は `rules.ts`・`addressTail.ts`・`building.ts` を、`addressTail.ts`・`building.ts`・`candidates.ts`・`buildingStart.ts` は `rules.ts` を import する（`buildingStart.ts` は split/ の外の `abrgNormalize.ts`・`trackedText.ts` も）。`outcome.ts` は ports の型だけを import する。循環させない。
+
 ## 依存
 
 - `@geolonia/normalize-japanese-addresses` は `3.1.3` に固定する（2026-09-27 時点で npm の最新）
