@@ -23,6 +23,13 @@ const STYLED_FIELDS = [
   'building',
   'unmatched',
 ] as const satisfies readonly StyledField[];
+// StyledField に項目を足して STYLED_FIELDS に足し忘れたら typecheck で落とす
+const _coversAllStyledFields: Exclude<
+  StyledField,
+  (typeof STYLED_FIELDS)[number]
+> extends never
+  ? true
+  : false = true;
 
 /** 検査とマージを済ませたオプション */
 export interface PreparedOptions {
@@ -84,6 +91,7 @@ const toStyles = (
       return undefined;
     }
     const merged = mergeCharStyle(base ?? {}, fieldStyle ?? {});
+    // normalize-core が字形の指定の検査を単独の関数として公開していないため、空文字に当てて検査だけを行う
     applyCharStyle('', merged);
     return merged;
   };
@@ -98,9 +106,7 @@ const toStyles = (
 };
 
 /**
- * オプションを検査し、項目ごとの字形の指定を default とマージしておく
- *
- * 字形の指定は mergeCharStyle が作る写しなので、あとで options を書き換えても結果は変わらない。
+ * オプションを検査し、項目ごとの字形の指定を default とマージしておく（docs/design.md の「公開 API」と「字形の指定」）
  *
  * @param options - AddressNormalizer.create のオプション
  * @returns 検査とマージを済ませたオプション

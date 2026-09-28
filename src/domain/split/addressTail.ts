@@ -14,10 +14,7 @@ export interface AddressTail {
 }
 
 /**
- * 全体の結果から、住所の末尾と残りを決める
- *
- * level 8 なら block が末尾で unmatched が残り。それ以外は unmatched の先頭の番地らしい部分が末尾で、
- * その直後の号・番地・番・地も残りから除く。
+ * 全体の結果から、住所の末尾と残りを決める（docs/design.md の手順5）
  *
  * @param whole - テキスト全体の解析の結果（level 3 以上）
  * @returns 住所の末尾と残り
@@ -34,10 +31,10 @@ export const wholeTail = (whole: ParsedAddress): AddressTail => {
 };
 
 /**
- * 前半の結果から、前半の住所の末尾を作る
+ * 前半の結果から、前半の住所の末尾を作る（docs/design.md の手順7）
  *
  * @param front - 前半の解析の結果
- * @returns block と、末尾の住所の接尾語を落とした unmatched を - でつないだもの
+ * @returns 前半の住所の末尾
  */
 export const frontTail = (front: ParsedAddress): string =>
   [front.block ?? '', front.unmatched.replace(TRAILING_SUFFIX, '')]

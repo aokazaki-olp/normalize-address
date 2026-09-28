@@ -15,12 +15,10 @@ import type { PreparedOptions } from './options.ts';
 import type { SplitOutcome } from './split/outcome.ts';
 
 /**
- * 項目に字形の指定を当てる
- *
- * ガード付き NFKC をかけたあと、字形の指定を当てる。指定が undefined なら当てない。
+ * 項目に字形の指定を当てる（docs/design.md の「字形の指定」）
  *
  * @param text - 項目の文字列
- * @param style - prepareOptions がマージと検査を済ませた項目の字形の指定
+ * @param style - prepareOptions がマージと検査を済ませた項目の字形の指定。undefined なら当てない
  * @returns 字形をそろえた文字列
  */
 export const styleField = (
@@ -32,10 +30,7 @@ export const styleField = (
 };
 
 /**
- * 出力を組み立てる
- *
- * 住所の項目・level・point・codes は切れ目の探索の結果の fieldsFrom から、unmatched と building は切れ目の探索の結果から、
- * nja は全体の結果から取る。
+ * 出力を組み立てる（docs/design.md の出力の表）
  *
  * @param input - 渡された文字列
  * @param whole - テキスト全体の解析の結果

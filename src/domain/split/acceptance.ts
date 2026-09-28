@@ -28,10 +28,7 @@ export interface BuildingSide {
 }
 
 /**
- * 前半の結果が、全体の結果と同じ住所を指すかを判定する
- *
- * 都道府県・市区町村・町字と住所の末尾を比べる。前半の住所の末尾は block と、
- * 末尾の号・番地・番・地を落とした unmatched を - でつないだもの。
+ * 前半の結果が、全体の結果と同じ住所を指すかを判定する（docs/design.md の手順6）
  *
  * @param context - 全体の結果と、その住所の末尾
  * @param front - 切れ目の候補までの前半の解析の結果
@@ -99,9 +96,7 @@ const keepsWholeNumber = (
   (LEADING_SPACE.test(after) && !continuesWholeNumber(context, tail, building));
 
 /**
- * 建物部の始まりの位置で切った前半と後半を、住所と建物部として受け入れるかを判定する
- *
- * docs/design.md の手順4の受け入れ条件（地域一致・level 3 以上・末尾あり・読み切り・続きでない・番地の保持）をすべて満たすときだけ受け入れる。
+ * 建物部の始まりの位置で切った前半と後半を受け入れるかを判定する（docs/design.md の手順4の受け入れ条件）
  *
  * @param context - 全体の結果と、その住所の末尾
  * @param front - 建物部の始まりの位置までの前半の解析の結果

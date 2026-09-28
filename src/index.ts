@@ -6,10 +6,8 @@
 
 import { createNjaParser } from './adapters/njaParser.ts';
 import { createAddressNormalizer } from './application/addressNormalizer.ts';
-import type {
-  AddressNormalizer as Normalizer,
-  AddressNormalizerOptions,
-} from './ports/addressResult.ts';
+import type { AddressNormalizer as Normalizer } from './ports/addressNormalizer.ts';
+import type { AddressNormalizerOptions } from './ports/addressResult.ts';
 
 const njaParser = createNjaParser();
 

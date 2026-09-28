@@ -23,10 +23,8 @@ import {
   type SplitOutcome,
 } from '../domain/split/outcome.ts';
 import type { AddressParser, ParsedAddress } from '../ports/addressParser.ts';
-import type {
-  AddressNormalizer,
-  AddressNormalizerOptions,
-} from '../ports/addressResult.ts';
+import type { AddressNormalizer } from '../ports/addressNormalizer.ts';
+import type { AddressNormalizerOptions } from '../ports/addressResult.ts';
 
 const findAtBuildingStart = async (
   parser: AddressParser,
@@ -85,9 +83,7 @@ const findSplit = async (
 };
 
 /**
- * AddressParser を使う住所の正規化器を作る
- *
- * options はここで1回だけ検査し、字形の指定をマージしておく。
+ * AddressParser を使う住所の正規化器を作る（docs/design.md の「処理の流れ」）
  *
  * @param parser - 住所を解析する依存
  * @param options - 字形の指定と、結果に足す項目

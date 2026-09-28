@@ -139,11 +139,11 @@ const NO_SPACE_COMPONENTS = [
   '番地',
   '番',
   '号',
-  '\u7dda',
+  '線',
   '地割',
   '分区',
   '基線',
-  '\u6761',
+  '条',
 ];
 
 const ADDRESS_COMPONENTS = [
@@ -153,14 +153,14 @@ const ADDRESS_COMPONENTS = [
   '番内',
   '番',
   '号',
-  '\u68df',
-  '\u968e',
-  '\u5ba4',
-  '\u7dda',
+  '棟',
+  '階',
+  '室',
+  '線',
   '地割',
-  '\u533a',
+  '区',
   '街区',
-  '\u6761',
+  '条',
   '基線',
   '分区',
   '基北',
@@ -169,11 +169,11 @@ const ADDRESS_COMPONENTS = [
   '番通',
   '町内会',
   '林班',
-  '\u5b57',
-  '\u4e01',
+  '字',
+  '丁',
   'ノ町',
   'の町',
-  '\u90e8',
+  '部',
   '本通',
   '本松',
   '本杉',
@@ -380,9 +380,7 @@ export const normalizeDashes = (tracked: TrackedText): TrackedText => {
 };
 
 /**
- * BasicNormalize のうち、空白と横棒をそろえる部分
- *
- * 引用符・コメント・異体字セレクタの除去と NFKC は行わない。
+ * BasicNormalize のうち、空白と横棒をそろえる部分（docs/design.md の「移植した処理」）
  *
  * @param tracked - 対象
  * @returns そろえた結果
