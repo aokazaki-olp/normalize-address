@@ -66,7 +66,7 @@ export type SplitStatus = 'found' | 'none' | 'unresolved' | 'skipped';
 /**
  * AddressNormalizer.normalize の結果
  *
- * split が 'found' で、建物部の始まりの位置（abr-geocoder の規則で見つけた位置）で切ったときは、住所の項目・level・point・codes を
+ * split が 'found' で、建物部の始まりの位置で切ったときは、住所の項目・level・point・codes を
  * 前半（住所の部分）の解析の結果から取る。nja は常に全体（入力にガード付き NFKC をかけたテキスト）の解析の結果なので、
  * level と nja の中の level、block と nja の中の addr が違うことがある。
  */
@@ -93,15 +93,16 @@ export interface AddressResult {
   /**
    * データで確かめられなかった住所の残り（NJA の other にあたる）。無ければ ''。
    * split が 'found' なら建物部は building に切り出してある。'skipped'・'unresolved' のときは、建物部を含む残り全部。
-   * NJA の other をもとにしているので NJA の変換がかかっており（数字と隣り合う横棒や長音は -、漢数字は算用数字など）、入力の字のままではない。
-   * 建物名を入力の字で読みたいときは building を見る
+   * NJA の other をもとにしているので、入力の字のままではない。算用数字・漢数字と隣り合う横棒（長音を含む）は常に - になり、
+   * 町字まで読めたとき（level 3 以上）はさらに漢数字が算用数字に、番・号などが - になる。
+   * building に切り出した建物部はこの変換を受けない（ガード付き NFKC と字形の指定だけ）。'skipped'・'unresolved' では建物名が unmatched に残り、この変換を受ける
    */
   unmatched: string;
   /** NJA の level（split が 'found' のときの取り方は AddressResult の説明を参照） */
   level: AddressLevel;
   /** 位置情報。無ければ null */
   point: AddressPoint | null;
-  /** 切れ目の探索の結果 */
+  /** 切れ目の探索の結果（各値の意味と building・unmatched は SplitStatus を参照） */
   split: SplitStatus;
   /**
    * lgCode は市区町村の全国地方公共団体コード（6桁）で、市区町村まで読めなければ null（都道府県のコードは入らない）。

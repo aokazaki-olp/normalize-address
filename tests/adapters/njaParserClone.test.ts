@@ -5,6 +5,8 @@ import { requestHandlers } from '@geolonia/normalize-japanese-addresses';
 
 import { createNjaParser } from '../../src/adapters/njaParser.ts';
 
+// NJA のモジュールの状態（キャッシュ・取得処理の差し替え）を njaParser.test.ts と別のプロセスで分けるため、ファイルを分ける
+
 // 名前とコードは公開の情報、座標と町字 ID は作った値
 const PREFECTURES = {
   meta: { updated: 1 },

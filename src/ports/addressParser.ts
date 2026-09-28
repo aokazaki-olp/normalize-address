@@ -15,7 +15,7 @@ export interface ParsedAddress {
   unmatched: string;
   level: AddressLevel;
   point: AddressPoint | null;
-  /** 全国地方公共団体コード（6桁） */
+  /** 市区町村の全国地方公共団体コード（6桁） */
   lgCode: string | null;
   /** 町字 ID（7桁） */
   machiazaId: string | null;

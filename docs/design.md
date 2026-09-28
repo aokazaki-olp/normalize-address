@@ -29,7 +29,7 @@ export interface AddressResult {
   prefecture: string | null; // NJA の pref。読めなければ null
   city: string | null; // NJA の city（郡＋市区町村＋政令市の区）。読めなければ null
   town: string | null; // NJA の town（町字：大字・丁目・小字）。読めなければ null
-  block: string | null; // NJA の addr（番地等：街区符号-住居番号、または地番）。読めなければ null
+  block: string | null; // NJA の addr（番地等：例 21-3（街区符号-住居番号）、または地番。形は下の block の項）。読めなければ null
   building: string; // 建物部。切り出さなかったときは ''（split を見る）
   unmatched: string; // データで確かめられなかった住所の残り（NJA の other にあたる）。無ければ ''
   level: AddressLevel; // NJA の level
@@ -49,24 +49,24 @@ export interface AddressPoint {
 ```
 
 - 読めなかった項目（`prefecture`〜`block`・`point`・`codes` の `lgCode`・`machiazaId`）は、省かずに `null` を置く。利用者が結果を ORM や DB にそのまま渡すため（ユーザーの決定）。たとえば Prisma では、値に `undefined` を渡すとその項目はクエリに含まれない（"if `undefined` is passed as a value, it is not included in the generated query"。Prisma ORM v7 の文書 `prisma.io/docs/orm/prisma-client/special-fields-and-types/null-and-undefined`、2026-09-28 確認）
-- `building`・`unmatched` は文字列のまま。`''` が「無い」を表す
-- `building` が `''` なのは、`split` が `'none'`（住所で終わっていて建物部が無い）のときだけではない。`'skipped'`（level 3 未満で切れ目を探さない）・`'unresolved'`（町字まで読めたが切れ目を決められなかった）のときも `''` で、建物部は `unmatched` に残る。利用者は `building` の `''` だけで「建物が無い」と判断せず `split` を見る。`split` の4つの値の意味と、そのときの `building`・`unmatched` は公開の型の TSDoc（`SplitStatus`）にも書く
+- `building`・`unmatched` は `null` にせず文字列のまま。`unmatched` は無ければ `''`。`building` の `''` の意味は次の項のとおり `split` を見る
+- `building` が `''` なのは、`split` が `'none'`（住所で終わっていて建物部が無い）のときだけではない。`'skipped'`（level 3 未満で切れ目を探さない）・`'unresolved'`（町字まで読めたが切れ目を決められなかった）のときも `''` で、建物部は `unmatched` に残る。利用者は `building` の `''` だけで「建物が無い」と判断せず `split` を見る。`split` の4つの値の意味と、そのときの `building`・`unmatched` は型 `SplitStatus` の TSDoc（名前では公開しない。`AddressResult['split']` で取れる）にも書く
 - `split` が `'found'` で手順4（建物部の始まりの位置）で切ったときは、住所の項目・`level`・`point`・`codes` を前半の解析の結果から取り、`nja` は常に全体（テキスト）の解析の結果なので、`level` と `nja` の中の `level`、`block` と `nja` の中の `addr` が違うことがある（下の「出力の表」）
 - `point.level` は NJA の型のまま `number` にする（結果の `level` の `AddressLevel` のように値を絞らない）
 - `codes`・`nja` は、オプションが `true` のときだけ置く（`false` や省略のときは項目そのものが無い）
 
 - 名前は NJA の分け方に合わせ、`pref` は正式な語 `prefecture` にする。`city`・`town` の中身は NJA の定義のまま
 - `block` は NJA の `addr`。日本郵便の郵便番号・デジタルアドレス API の `block_name`（説明は「番地等文字列」、英語の説明は "block name"。API 仕様書 1.1.0.260723、2026-09-28 確認）に名前を合わせた。住居表示の地域では「街区符号-住居番号」（例 `21-3`）、地番の地域では地番（例 `3060-1`）。これは例で、住居番号だけのもの、住居番号2を含む3つ組、支号を含む地番（最大3つ組）もある（JAv2 の型で街区符号と住居番号2、地番2・地番3が省略できる）。地番の地域では、道路で囲まれた街区ではなく一筆の土地を指す。OSM の `addr:block_number` とは指すものが違う（英語版 wiki は道路で囲まれた区域の番号、日本語版 wiki は「街区符号または番地」で、住居番号・枝番号は `addr:housenumber` に分ける。2026-09-28 確認）
-- `unmatched` は、データで確かめられなかった住所の残り。中身は NJA の `other`（NJA 3.1.3 の README の説明は「正規化できなかった文字列」）と同じ種類のものだが、建物部は `building` に切り出してある。`split` が `'unresolved'` のときは、建物部を含む残り全部が入る。名前は abr-geocoder 3.x の `unmatched_address`（3.0.51 で確認。照合できなかった部分。型は文字列の配列）と同じ語にした。日本郵便の API の `other_name`（説明は「その他住所文字列」、英語の説明は "Building number, room number, and other details"）と紛れないように `other` を使わない
+- `unmatched` は、データで確かめられなかった住所の残り。中身は NJA の `other`（NJA 3.1.3 の README の説明は「正規化できなかった文字列」）と同じ種類のものだが、建物部は `building` に切り出してある。`split` が `'skipped'`・`'unresolved'` のときは、建物部を含む残り全部が入る。名前は abr-geocoder 3.x の `unmatched_address`（3.0.51 で確認。照合できなかった部分。型は文字列の配列）と同じ語にした。日本郵便の API の `other_name`（説明は「その他住所文字列」、英語の説明は "Building number, room number, and other details"）と紛れないように `other` を使わない
 - `nja` の中の `addr`・`other` は NJA の名前のまま（NJA の結果そのものなので変えない）
 - 字形は、ガード付き NFKC（`@arihirookazaki/normalize-core`）をかけた後の文字列。`prefecture`〜`block` は NJA が返すマスターの表記
 - 公開の型の TSDoc（`AddressStyle`）にも、`fields` の `false` でもガード付き NFKC はかかること（字形の指定だけを当てない）と、既定は ASCII の95字を半角にすることを書く（下記「字形の指定」）
 - `codes.lgCode` は市区町村の全国地方公共団体コード（6桁の文字列）で、市区町村まで読めなければ `null`（都道府県のコードは入らない）。JAv2 の市区町村コードは数値で先頭のゼロが落ちているので、6桁にそろえる（札幌市中央区 `11011` → `011011`）。`codes.machiazaId` は町字 ID（7桁の文字列）
-- `nja` は NJA の結果の写し（`structuredClone`）を入れる。NJA の結果の中には NJA のキャッシュのオブジェクト（`metadata.city` など）があり、そのまま渡すと利用者の書き換えが同じプロセスの以後の結果に波及するため
+- `nja` は NJA の結果の写し（`structuredClone`）を入れる。NJA の結果の中には NJA のキャッシュのオブジェクト（`metadata.city` など）があり、そのまま渡すと利用者の書き換えが同じ読み込み単位の以後の結果に波及するため
 - `nja` の型は `Readonly<Record<string, unknown>>` のままにする。NJA の版によって形が変わりうるので、スキーマを型に固定しない（規約 §2.7 の「スキーマが本当に存在しない場合は `unknown` のまま」）
-- 公開する値は `AddressNormalizer`（モジュールオブジェクト、規約 §2.1）と `NormalizeAddressError` だけ。型は `AddressNormalizer`・`AddressNormalizerOptions`・`AddressResult`・`AddressStyle`・`AddressLevel`・`AddressPoint` と、normalize-core の `CharStyle`・`CharTarget`・`WidthMode` を再公開する。関数（`applyCharStyle` など）は再公開しない
+- 公開する値は `AddressNormalizer`（モジュールオブジェクト、規約 §2.1）と `NormalizeAddressError` だけ。型は `AddressNormalizer`・`AddressNormalizerOptions`・`AddressResult`・`AddressStyle`・`AddressLevel`・`AddressPoint` と、normalize-core の `CharStyle`・`CharTarget`・`WidthMode` を再公開する。関数（`applyCharStyle` など）は再公開しない。`SplitStatus` は利用者が名前で使う必要が無いので公開の型に入れない（`AddressResult['split']` で取れる）
 - `create` は options を1回だけ検査・準備する（字形の指定の検査と、`default` と項目ごとの指定のマージ）。options が検査を満たさなければ `create` が `TypeError` を投げ、`normalize` は呼ぶ前から使えない。準備したものは写しなので、`create` のあとで options を書き換えても正規化器には効かない
-- 値の `AddressNormalizer` は ports の `AddressNormalizerFactory`（`create` を持つ interface。TSDoc はそのメソッドに付ける）で型を注釈する。短縮記法の `{ create }` に付けた TSDoc は tsc が出力する `dist/index.d.ts` に届かないため。`AddressNormalizerFactory` は利用者が名前で使う必要が無いので公開の型に入れない（`typeof AddressNormalizer` で取れる）
+- 値の `AddressNormalizer` は ports の `AddressNormalizerFactory`（`create` を持つ interface。TSDoc はそのメソッドに付ける）で型を注釈する。短縮記法の `{ create }` に付けた TSDoc は tsc が出力する `dist/index.d.ts` に届かないため。`AddressNormalizerFactory` は利用者が名前で使う必要が無いので公開の型に入れない（`typeof AddressNormalizer` で取れる）。この interface の TSDoc に実装（NJA）の事情を書くのは、d.ts に届く場所がここだけで、実装が1つのため（規約 §2.8 の例外）
 - NJA の設定・取得処理の差し替え（下記「失敗の扱い」）・住所データのキャッシュはモジュールの読み込み単位に1つ（worker_threads の worker ごとに別）で、`create` を何回呼んでもすべての正規化器で共有される。取得先（エンドポイント）などは `create` の引数に入れない
 - `create` の入力の誤り（options が object でない、`nja`・`codes` が boolean でない、字形の指定が検査を満たさない）と、`normalize` の入力の誤り（引数が文字列でない）は `TypeError`。それ以外で処理を終えられなかったもの（住所データの取得の失敗、NJA の処理の失敗）は `normalize` が `NormalizeAddressError` を投げる。原因は `cause` を見る（下記「失敗の扱い」）
 
@@ -197,7 +197,7 @@ NJA 3.1.3 は取得した応答が正常かを確かめず、住居表示・地�
 
 NJA は応答の本文を取得処理の外で読む（NJA 3.1.3 の `dist/main-node-esm.mjs` の 503・551・566・939 行）ので、本文の途中の切断（`TypeError: terminated`）、2xx で本文が JSON でない（`SyntaxError`）、形の違う JSON（`TypeError`）、`file://` の取得先が無い（`ENOENT`）、未知のスキーム（`Error`）などは取得処理の差し替えでは包めない。そのため adapters の AddressParser で、NJA の `normalize` が投げた例外のうち `NormalizeAddressError` でないもの（判定は `name`）を、すべて `NormalizeAddressError` で包む（`url`・`status` は `undefined`、`cause` に元の例外）。私たちの domain・application の不具合で出る例外は包まない（NJA との境界の外なので）。
 
-`requestHandlers` はモジュール全体で1つなので、差し替えは最初の解析の前に1回だけ行う。`create` を何回呼んでも差し替えは1回で、すべての正規化器が同じ取得処理と住所データのキャッシュを使う。同じプロセスで NJA を直接使う別のコードがあれば、その挙動も変わる。
+`requestHandlers` はモジュール全体で1つなので、差し替えは最初の解析の前に1回だけ行う。`create` を何回呼んでも差し替えは1回で、すべての正規化器が同じ取得処理と住所データのキャッシュを使う。同じ読み込み単位で NJA を直接使う別のコードがあれば、その挙動も変わる。
 
 ## レイヤーと依存の向き
 
@@ -206,7 +206,7 @@ src/
   index.ts       公開面。NJA の AddressParser を1つ作り、それを使う create を AddressNormalizer として公開する
   application/   処理の流れ（手順1〜8）。ports の AddressParser だけを通して解析する
   domain/        純粋な処理（options の検査と準備、切れ目の候補、建物部の始まりの位置と abrg の規則の移植、住所の末尾、結果の比較と組み立て）
-  ports/         インターフェース（AddressParser、AddressNormalizer）と型だけ
+  ports/         インターフェース（AddressParser、AddressNormalizer、AddressNormalizerFactory）と型だけ
   adapters/      外部との接続。NJA と取得の失敗の判定、NormalizeAddressError
 ```
 
@@ -262,7 +262,7 @@ src/
 - NJA の状態（設定・取得処理の差し替え・住所データのキャッシュ）はモジュールの読み込み単位で、worker_threads の worker ごとに別
 - `normalize` は `AbortSignal` を受け取らず、呼び出しを途中で打ち切れない。NJA 3.1.3 の `normalize` に signal を渡す API が無いため（オプションは `level` と `geoloniaApiKey` だけ。規約 §5.3 の例外）
 - 取得先が 2xx で形の違う都道府県の一覧（`ja.json`。`meta` の無い JSON など）を返すと、NJA 3.1.3 はそれを確かめずにキャッシュし（dist の `getPrefectures`）、以後そのモジュールの読み込み単位では取得し直さずに失敗し続ける（`NormalizeAddressError` が続く）。直すにはプロセスの再起動が要る。配信側の障害のときに限られるので、記録だけにする（ユーザーの決定）
-- `unmatched` は NJA の `other` をもとにしているので、NJA の変換がかかっていて、入力の字形のままではない。数字・漢数字と隣り合う横棒（長音 `ー` を含む）は `-` になり、漢数字は算用数字に、`番` `号` などは `-` になる（`nja-3.1.3-char-rules.md` の P5・A 系の規則）。例：`東京都中央区ニュー八重洲ビル10階` は level 2・`skipped` で、`unmatched` は `ニュ-八重洲ビル10階`。`building` はテキスト（入力にガード付き NFKC だけをかけたもの）から切り出すので、この変換を受けない。建物名を入力の字で読みたいときは `building` を見る（`skipped`・`unresolved` では建物名が `unmatched` に残り、変換を受ける）。記録だけにする（ユーザーの決定）
+- `unmatched` は NJA の `other` をもとにしているので、入力の字のままではない。算用数字・漢数字と隣り合う横棒（長音を含む）は常に `-` になり、町字まで読めたとき（level 3 以上）はさらに漢数字が算用数字に、`番` `号` などが `-` になる（中身は `nja-3.1.3-char-rules.md` の P5 と層4。NJA 3.1.3 の dist の 787〜790 行と 1015〜1051 行）。例：`東京都中央区ニュー八重洲ビル10階` は level 2・`skipped` で、`unmatched` は `ニュ-八重洲ビル10階`。`building` に切り出した建物部はこの変換を受けない（ガード付き NFKC と字形の指定だけ）。`skipped`・`unresolved` では建物名が `unmatched` に残り、この変換を受ける。記録だけにする（ユーザーの決定。変換の条件を事実に合わせて書き直した）
 
 ## 今回やらないこと
 
