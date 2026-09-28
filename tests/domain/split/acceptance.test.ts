@@ -5,6 +5,8 @@ import {
   isAddressFront,
   isSameAddress,
 } from '../../../src/domain/split/acceptance.ts';
+import { wholeContext } from '../../../src/domain/split/addressTail.ts';
+import { toBuilding } from '../../../src/domain/split/building.ts';
 import type { ParsedAddress } from '../../../src/ports/addressParser.ts';
 
 const parsed = (fields: Partial<ParsedAddress>): ParsedAddress => ({
@@ -140,7 +142,10 @@ describe('isSameAddress', () => {
   ];
   for (const [name, front, tail, expected] of cases) {
     it(name, () => {
-      assert.equal(isSameAddress(whole, tail, parsed(front)), expected);
+      assert.equal(
+        isSameAddress({ ...wholeContext(whole), tail }, parsed(front)),
+        expected,
+      );
     });
   }
 });
@@ -170,38 +175,28 @@ describe('isAddressFront', () => {
     describe(title, () => {
       for (const [name, whole, front, after, expected] of cases) {
         it(name, () => {
-          assert.equal(isAddressFront(whole, parsed(front), after), expected);
+          assert.equal(
+            isAddressFront(wholeContext(whole), parsed(front), {
+              after,
+              building: toBuilding(after),
+            }),
+            expected,
+          );
         });
       }
     });
   };
 
-  describeFrontCases('地域・level・前半の住所の末尾', [
+  describeFrontCases('地域一致', [
     [
-      '地域が一致し末尾がある（level 3）',
+      '地域一致：地域が一致し末尾がある（level 3）',
       level3,
       { ...area, unmatched: '10' },
       'ビル',
       true,
     ],
     [
-      '住所の末尾が全体と違ってもよい',
-      level3,
-      { ...area, block: '10-2', level: 8 },
-      'ビル',
-      true,
-    ],
-    ['住所の末尾が空', level3, { ...area, unmatched: '' }, 'ビル', false],
-    ['住所の末尾が号だけ', level3, { ...area, unmatched: '号' }, 'ビル', false],
-    [
-      'level が 3 未満',
-      level3,
-      { ...area, unmatched: '10', level: 2 },
-      'ビル',
-      false,
-    ],
-    [
-      '町字が違う',
+      '地域一致：町字が違う',
       level3,
       { ...area, town: '南三条西四丁目', unmatched: '10' },
       'ビル',
@@ -209,52 +204,92 @@ describe('isAddressFront', () => {
     ],
   ]);
 
-  describeFrontCases('前半が住所として読み切れている（全体の末尾がある）', [
+  describeFrontCases('level 3 以上', [
     [
-      'P1：unmatched に建物名が残る',
+      'level 3 以上：level が 3 未満',
+      level3,
+      { ...area, unmatched: '10', level: 2 },
+      'ビル',
+      false,
+    ],
+  ]);
+
+  describeFrontCases('末尾あり', [
+    [
+      '末尾あり：住所の末尾が全体と違ってもよい',
+      level3,
+      { ...area, block: '10-2', level: 8 },
+      'ビル',
+      true,
+    ],
+    [
+      '末尾あり：住所の末尾が空',
+      level3,
+      { ...area, unmatched: '' },
+      'ビル',
+      false,
+    ],
+    [
+      '末尾あり：住所の末尾が号だけ',
+      level3,
+      { ...area, unmatched: '号' },
+      'ビル',
+      false,
+    ],
+  ]);
+
+  describeFrontCases('読み切り（全体の末尾がある）', [
+    [
+      '読み切り：unmatched に建物名が残る',
       level3,
       { ...area, unmatched: '10 AKASAKA' },
       'HILLS',
       false,
     ],
     [
-      'P1：unmatched がハイフンで終わる',
+      '読み切り：unmatched がハイフンで終わる',
       level3,
       { ...area, unmatched: '2-107-' },
       '716',
       false,
     ],
     [
-      'P1：番地の間の 番・の は読み切れている',
+      '読み切り：番地の間の 番・の は読み切れている',
       level3,
       { ...area, unmatched: '17番の2' },
       'ビル',
       true,
     ],
     [
-      'P1：番地の間の 番- と末尾の号',
+      '読み切り：番地の間の 番- と末尾の号',
       level3,
       { ...area, unmatched: '2番-21号' },
       'ビル',
       true,
     ],
     [
-      'P1：数字の間の 区',
+      '読み切り：数字の間の 区',
       level3,
       { ...area, unmatched: '2区300-2' },
       'ビル',
       true,
     ],
-    ['P1：末尾の番先', level3, { ...area, unmatched: '1番先' }, 'ビル', true],
     [
-      'P1：level 8 の前半の unmatched が接尾語だけ',
+      '読み切り：末尾の番先',
+      level3,
+      { ...area, unmatched: '1番先' },
+      'ビル',
+      true,
+    ],
+    [
+      '読み切り：level 8 の前半の unmatched が接尾語だけ',
       level3,
       { ...area, block: '6', unmatched: '番先', level: 8 },
       '6街区',
       true,
     ],
     [
-      'P1：level 8 の前半の unmatched が空でも接尾語だけでもない',
+      '読み切り：level 8 の前半の unmatched が空でも接尾語だけでもない',
       level3,
       { ...area, block: '10', unmatched: 'AKASAKA', level: 8 },
       'HILLS',
@@ -262,30 +297,30 @@ describe('isAddressFront', () => {
     ],
   ]);
 
-  describeFrontCases('前半が住所として読み切れている（全体の末尾が空）', [
+  describeFrontCases('読み切り（全体の末尾が空）', [
     [
-      'P1：全体の末尾が空なら、全体の unmatched の先頭と一致し数字で終わる',
+      '読み切り：全体の末尾が空なら、全体の unmatched の先頭と一致し数字で終わる',
       noTail,
       { ...area, unmatched: '字北ノ作305-5' },
       'クレオビル2F',
       true,
     ],
     [
-      'P1：全体の末尾が空なら、全体の unmatched の先頭の短い部分でもよい',
+      '読み切り：全体の末尾が空なら、全体の unmatched の先頭の短い部分でもよい',
       noTail,
       { ...area, unmatched: '字北ノ作305' },
       ' ビル',
       true,
     ],
     [
-      'P1：全体の末尾が空で、全体の unmatched の先頭と一致しない',
+      '読み切り：全体の末尾が空で、全体の unmatched の先頭と一致しない',
       noTail,
       { ...area, unmatched: '字南ノ作305' },
       'ビル',
       false,
     ],
     [
-      'P1：全体の末尾が空で、前半の unmatched が数字で終わらない',
+      '読み切り：全体の末尾が空で、前半の unmatched が数字で終わらない',
       noTail,
       { ...area, unmatched: '字北ノ作305-5クレオ' },
       'ビル2F',
@@ -293,65 +328,65 @@ describe('isAddressFront', () => {
     ],
   ]);
 
-  describeFrontCases('建物部が住所の続きで始まらない', [
+  describeFrontCases('続きでない', [
     [
-      'P2：建物部が 地＋数字 で始まる',
+      '続きでない：建物部が 地＋数字 で始まる',
       level3,
       { ...area, unmatched: '9' },
       '地9 ビル',
       false,
     ],
     [
-      'P2：建物部が の＋数字 で始まる',
+      '続きでない：建物部が の＋数字 で始まる',
       level3,
       { ...area, unmatched: '6' },
       'の4ビル',
       false,
     ],
     [
-      'P2：建物部が 番先＋数字 で始まる',
+      '続きでない：建物部が 番先＋数字 で始まる',
       level3,
       { ...area, unmatched: '6' },
       '番先6街区',
       false,
     ],
     [
-      'P2：建物部が 線 で始まる',
+      '続きでない：建物部が 線 で始まる',
       level3,
       { ...area, unmatched: '1' },
       '線2号',
       false,
     ],
     [
-      'P2：先頭のハイフンは落としてから見る',
+      '続きでない：先頭のハイフンは落としてから見る',
       level3,
       { ...area, unmatched: '10' },
       '-202号室',
       true,
     ],
     [
-      'P2：横棒の後ろの数字だけは枝番',
+      '続きでない：横棒の後ろの数字だけは枝番',
       level3,
       { ...area, unmatched: '1646' },
       'ー1',
       false,
     ],
     [
-      'P2：横棒の後ろの 数字＋F＋英字 は番地の続き',
+      '続きでない：横棒の後ろの 数字＋F＋英字 は番地の続き',
       level3,
       { ...area, unmatched: '17' },
       'ー1FAビレッジ',
       false,
     ],
     [
-      'P2：横棒の後ろの 数字＋F＋記号 は階',
+      '続きでない：横棒の後ろの 数字＋F＋記号 は階',
       level3,
       { ...area, unmatched: '8-13' },
       '-4F-CD号室',
       true,
     ],
     [
-      'P2：横棒の後ろの 数字＋階＋英字 は階',
+      '続きでない：横棒の後ろの 数字＋階＋英字 は階',
       level3,
       { ...area, unmatched: '15-7' },
       '-1階B',
@@ -359,79 +394,79 @@ describe('isAddressFront', () => {
     ],
   ]);
 
-  describeFrontCases('データで確定した番地を上書きしない', [
+  describeFrontCases('番地の保持', [
     [
-      'P3：全体が level 8 で前半が level 3 なら受け入れない',
+      '番地の保持：全体が level 8 で前半が level 3 なら受け入れない',
       level8,
       { ...area, unmatched: '10' },
       '3FUNDES',
       false,
     ],
     [
-      'P3：前半も level 8 なら受け入れる',
+      '番地の保持：前半も level 8 なら受け入れる',
       level8,
       { ...area, block: '10', level: 8 },
       '3階',
       true,
     ],
     [
-      'P3：建物部が漢数字で始まれば受け入れる',
+      '番地の保持：建物部が漢数字で始まれば受け入れる',
       level8,
       { ...area, unmatched: '10' },
       '三信ビル',
       true,
     ],
     [
-      'P3：空白で始まれば受け入れる',
+      '番地の保持：空白で始まれば受け入れる',
       level8,
       { ...area, unmatched: '10' },
       ' 2階',
       true,
     ],
     [
-      'P3：空白で始まっても、先頭の数字が全体の番地の続きなら受け入れない',
+      '番地の保持：空白で始まっても、先頭の数字が全体の番地の続きなら受け入れない',
       level8,
       { ...area, unmatched: '10' },
       ' 3号棟',
       false,
     ],
     [
-      'P3：空白の無い階の形は受け入れない（前半が level 8 未満）',
+      '番地の保持：空白の無い階の形は受け入れない（前半が level 8 未満）',
       level8,
       { ...area, unmatched: '10' },
       '-3F',
       false,
     ],
     [
-      'P3：空白の後ろの階の形は、番地の続きに見えても受け入れる',
+      '番地の保持：空白の後ろの階の形は、番地の続きに見えても受け入れる',
       level8,
       { ...area, unmatched: '10' },
       ' 3階',
       true,
     ],
     [
-      'P3：空白の後ろでも F の直後が英字なら階でない',
+      '番地の保持：空白の後ろでも F の直後が英字なら階でない',
       level8,
       { ...area, unmatched: '10' },
       ' 3FUSHI',
       false,
     ],
     [
-      'P3：空白の後ろでも F の直後が & なら階でない',
+      '番地の保持：空白の後ろでも F の直後が & なら階でない',
       level8,
       { ...area, unmatched: '10' },
       ' 3F&Gビル',
       false,
     ],
     [
-      'P3：空白の後ろでも F の直後が片仮名なら階でない',
+      '番地の保持：空白の後ろでも F の直後が片仮名なら階でない',
       level8,
       { ...area, unmatched: '10' },
       ' 3Fビル1F',
       false,
     ],
     [
-      'P3：空白の後ろで F の直後が ( なら階',
+      '番地の保持：空白の後ろで F の直後が ( なら階',
       level8,
       { ...area, unmatched: '10' },
       ' 3F(77号室)',

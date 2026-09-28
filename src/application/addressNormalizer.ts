@@ -8,7 +8,10 @@ import { guardedNfkc } from '@arihirookazaki/normalize-core';
 import { buildResult } from '../domain/buildResult.ts';
 import { prepareOptions } from '../domain/options.ts';
 import { isAddressFront, isSameAddress } from '../domain/split/acceptance.ts';
-import { wholeTail } from '../domain/split/addressTail.ts';
+import {
+  wholeContext,
+  type WholeContext,
+} from '../domain/split/addressTail.ts';
 import { toBuilding } from '../domain/split/building.ts';
 import { buildingStarts } from '../domain/split/buildingStart.ts';
 import { splitCandidates } from '../domain/split/candidates.ts';
@@ -22,15 +25,16 @@ import type {
 const findBuildingStart = async (
   parser: AddressParser,
   text: string,
-  whole: ParsedAddress,
+  context: WholeContext,
 ): Promise<SplitOutcome | undefined> => {
   for (const start of buildingStarts(text)) {
-    const building = toBuilding(text.slice(start));
+    const after = text.slice(start);
+    const building = toBuilding(after);
     if (building === '') {
       continue;
     }
     const front = await parser.parse(text.slice(0, start));
-    if (isAddressFront(whole, front, text.slice(start))) {
+    if (isAddressFront(context, front, { after, building })) {
       return {
         split: 'found',
         address: front,
@@ -56,17 +60,17 @@ const findSplit = async (
   if (whole.level < 3) {
     return unsplit('skipped');
   }
-  const byStart = await findBuildingStart(parser, text, whole);
+  const context = wholeContext(whole);
+  const byStart = await findBuildingStart(parser, text, context);
   if (byStart !== undefined) {
     return byStart;
   }
-  const { tail, rest } = wholeTail(whole);
-  if (rest === '') {
+  if (context.rest === '') {
     return unsplit('none');
   }
   for (const position of splitCandidates(text)) {
     const front = await parser.parse(text.slice(0, position));
-    if (isSameAddress(whole, tail, front)) {
+    if (isSameAddress(context, front)) {
       const building = toBuilding(text.slice(position));
       return building === ''
         ? unsplit('none')

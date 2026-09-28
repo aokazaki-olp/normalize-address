@@ -5,8 +5,7 @@
  */
 
 import type { ParsedAddress } from '../../ports/addressParser.ts';
-import { frontTail, wholeTail } from './addressTail.ts';
-import { toBuilding } from './building.ts';
+import { frontTail, type WholeContext } from './addressTail.ts';
 import {
   CONTINUES_ADDRESS,
   ENDS_AS_ADDRESS,
@@ -22,51 +21,47 @@ import {
   SUFFIX_ONLY,
 } from './rules.ts';
 
+/** 建物部の始まりの位置から後ろのテキストと、そこから取り出した建物部 */
+export interface BuildingSide {
+  after: string;
+  building: string;
+}
+
 /**
  * 前半の結果が、全体の結果と同じ住所を指すかを判定する
  *
  * 都道府県・市区町村・町字と住所の末尾を比べる。前半の住所の末尾は block と、
  * 末尾の号・番地・番・地を落とした unmatched を - でつないだもの。
  *
- * @param whole - テキスト全体の解析の結果
- * @param tail - 全体の住所の末尾
+ * @param context - 全体の結果と、その住所の末尾
  * @param front - 切れ目の候補までの前半の解析の結果
  * @returns 一致すれば true
  */
 export const isSameAddress = (
-  whole: ParsedAddress,
-  tail: string,
+  context: WholeContext,
   front: ParsedAddress,
-): boolean => isSameArea(whole, front) && frontTail(front) === tail;
+): boolean =>
+  isSameArea(context.whole, front) && frontTail(front) === context.tail;
 
 const isSameArea = (whole: ParsedAddress, front: ParsedAddress): boolean =>
   front.prefecture === whole.prefecture &&
   front.city === whole.city &&
   front.town === whole.town;
 
-const readsThrough = (whole: ParsedAddress, front: ParsedAddress): boolean => {
+const hasAddressLevel = (front: ParsedAddress): boolean => front.level >= 3;
+
+const hasFrontTail = (tail: string): boolean => tail !== '';
+
+const readsThrough = (context: WholeContext, front: ParsedAddress): boolean => {
   const unmatched = front.unmatched.trim();
-  if (wholeTail(whole).tail !== '') {
+  if (context.tail !== '') {
     return front.level === 8
       ? unmatched === '' || SUFFIX_ONLY.test(unmatched)
       : unmatched === '' || FRONT_UNMATCHED.test(unmatched);
   }
   return (
-    whole.unmatched.trim().startsWith(unmatched) &&
+    context.whole.unmatched.trim().startsWith(unmatched) &&
     ENDS_AS_ADDRESS.test(unmatched)
-  );
-};
-
-const continuesWholeNumber = (
-  whole: ParsedAddress,
-  front: ParsedAddress,
-  building: string,
-): boolean => {
-  const digits = LEADING_DIGITS.exec(building)?.[0];
-  return (
-    digits !== undefined &&
-    !FLOOR_AFTER_SPACE.test(building) &&
-    wholeTail(whole).tail === `${frontTail(front)}-${digits}`
   );
 };
 
@@ -76,43 +71,55 @@ const continuesAfterBar = (after: string, building: string): boolean =>
   !FLOOR_AFTER_BAR.test(building) &&
   !ROOM.test(building);
 
-const keepsWholeNumber = (
-  whole: ParsedAddress,
-  front: ParsedAddress,
-  after: string,
+const doesNotContinue = ({ after, building }: BuildingSide): boolean =>
+  !CONTINUES_ADDRESS.test(building) && !continuesAfterBar(after, building);
+
+const continuesWholeNumber = (
+  context: WholeContext,
+  tail: string,
   building: string,
+): boolean => {
+  const digits = LEADING_DIGITS.exec(building)?.[0];
+  return (
+    digits !== undefined &&
+    !FLOOR_AFTER_SPACE.test(building) &&
+    context.tail === `${tail}-${digits}`
+  );
+};
+
+const keepsWholeNumber = (
+  context: WholeContext,
+  front: ParsedAddress,
+  tail: string,
+  { after, building }: BuildingSide,
 ): boolean =>
-  whole.level !== 8 ||
+  context.whole.level !== 8 ||
   front.level === 8 ||
   LEADING_KANJI_NUMERAL.test(building) ||
-  (LEADING_SPACE.test(after) && !continuesWholeNumber(whole, front, building));
+  (LEADING_SPACE.test(after) && !continuesWholeNumber(context, tail, building));
 
 /**
  * 建物部の始まりの位置で切った前半と後半を、住所と建物部として受け入れるかを判定する
  *
- * 次のすべてを満たすときだけ受け入れる。都道府県・市区町村・町字が全体の結果と一致し、level が 3 以上で、
- * 前半の住所の末尾が空でない。前半が住所として読み切れている。建物部が住所の続き（番・号・の など＋数字、線）で
- * 始まらず、横棒の後ろの数字が階・部屋番号の形でないもの（枝番）でもない。全体が level 8 で前半が level 8 未満なら、建物部が漢数字で始まるか、
- * 後半が空白で始まり建物部の先頭の数字が全体の番地の続きでない（階の形なら続きとみなさない）。
+ * docs/design.md の手順4の受け入れ条件（地域一致・level 3 以上・末尾あり・読み切り・続きでない・番地の保持）をすべて満たすときだけ受け入れる。
  *
- * @param whole - テキスト全体の解析の結果
+ * @param context - 全体の結果と、その住所の末尾
  * @param front - 建物部の始まりの位置までの前半の解析の結果
- * @param after - 建物部の始まりの位置から後ろのテキスト
+ * @param side - 建物部の始まりの位置から後ろのテキストと、そこから取り出した建物部
  * @returns 受け入れるなら true
  */
 export const isAddressFront = (
-  whole: ParsedAddress,
+  context: WholeContext,
   front: ParsedAddress,
-  after: string,
+  side: BuildingSide,
 ): boolean => {
-  const building = toBuilding(after);
+  const tail = frontTail(front);
   return (
-    isSameArea(whole, front) &&
-    front.level >= 3 &&
-    frontTail(front) !== '' &&
-    readsThrough(whole, front) &&
-    !CONTINUES_ADDRESS.test(building) &&
-    !continuesAfterBar(after, building) &&
-    keepsWholeNumber(whole, front, after, building)
+    isSameArea(context.whole, front) &&
+    hasAddressLevel(front) &&
+    hasFrontTail(tail) &&
+    readsThrough(context, front) &&
+    doesNotContinue(side) &&
+    keepsWholeNumber(context, front, tail, side)
   );
 };

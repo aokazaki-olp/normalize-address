@@ -43,3 +43,19 @@ export const frontTail = (front: ParsedAddress): string =>
   [front.block ?? '', front.unmatched.replace(TRAILING_SUFFIX, '')]
     .filter((part) => part !== '')
     .join('-');
+
+/** 全体の結果と、そこから1回だけ導く住所の末尾と残り */
+export interface WholeContext extends AddressTail {
+  whole: ParsedAddress;
+}
+
+/**
+ * 全体の結果から、切れ目の判定に使う文脈を作る
+ *
+ * @param whole - テキスト全体の解析の結果（level 3 以上）
+ * @returns 全体の結果と、その住所の末尾と残り
+ */
+export const wholeContext = (whole: ParsedAddress): WholeContext => ({
+  whole,
+  ...wholeTail(whole),
+});
