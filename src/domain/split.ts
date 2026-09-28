@@ -9,32 +9,82 @@ import type { SplitStatus } from '../ports/addressResult.ts';
 import { basicNormalize, normalizeBasicNormalized } from './abrgNormalize.ts';
 import { trackText, type TrackedText } from './trackedText.ts';
 
-// 漢数字は NJA 3.1.3 の正規表現が対象にする字（docs/nja-3.1.3-char-rules.md）
-const BEFORE_ANY = /^[号地]$/u;
-const BEFORE_NON_NUMBER = /^[0-9〇一二三四五六七八九十百千番目]$/u;
-const NUMBER_PART = /^[0-9号番地]$/u;
-const LEADING_NUMBER = /^[0-9]+(?:-[0-9]+)*/u;
-const LEADING_SUFFIX = /^(?:号|番地先|番先|番地|番|地先|地)/u;
-const TRAILING_SUFFIX = /(?:号|番地先|番先|番地|番|地先|地)$/u;
+// 先頭・末尾の replace で最長の接尾語を落とすため、前方が同じものは長いものを先に置く
+const ADDRESS_SUFFIXES = [
+  '号',
+  '番地先',
+  '番先',
+  '番地',
+  '番',
+  '地先',
+  '地',
+] as const;
+const NUMBER_SEPARATORS = [
+  '-',
+  '番地の',
+  '番地',
+  '番の',
+  '番-',
+  '番',
+  '号',
+  'の',
+  'ノ',
+  '街区',
+  '区',
+] as const;
+const ROOM_SUFFIXES = ['号室', '室'] as const;
+// NJA 3.1.3 の正規表現が対象にする漢数字（docs/nja-3.1.3-char-rules.md）
+const KANJI_NUMERALS = '〇一二三四五六七八九十百千';
 // NJA 3.1.3 が横棒として扱う字（normalize-core の HORIZONTAL_BAR と同じ集合。normalize-core が公開していないため写す）
-const LEADING_BARS =
-  /^[-\uff0d\ufe63\u2212\u2010\u2043\u2011\u2012\u2013\u2014\ufe58\u2015\u23af\u23e4\u30fc\uff70\u2500\u2501]+/u;
-const FIRST_ASCII_DIGIT = /[0-9]/u;
-const FRONT_UNMATCHED =
-  /^[0-9]+(?:(?:-|番地の|番地|番の|番-|番|号|の|ノ|街区|区)[0-9]+)*(?:号|番地先|番先|番地|番|地先|地)?$/u;
-const ENDS_AS_ADDRESS = /(?:[0-9]|号|番地先|番先|番地|番|地先|地)$/u;
-const CONTINUES_ADDRESS =
-  /^(?:(?:番地先|番先|番地|番|号|地先|地|[のノ])(?=[0-9])|線)/u;
-const FLOOR = /^[0-9]+(?:階|F(?![A-Za-z]))/u;
-const CLEAR_FLOOR = /^[0-9]+(?:階|F(?=$|[\s0-9・、,(]))/u;
-const ROOM = /^[0-9]+(?:号室|室)/u;
-const LEADING_DIGIT = /^[0-9]/u;
-const SUFFIX_ONLY = /^(?:号|番地先|番先|番地|番|地先|地)$/u;
+const HORIZONTAL_BARS = String.raw`-\uff0d\ufe63\u2212\u2010\u2043\u2011\u2012\u2013\u2014\ufe58\u2015\u23af\u23e4\u30fc\uff70\u2500\u2501`;
+const CUT_AFTER_ANY = '号地';
+const CUT_AFTER_NUMBER_END = '番目';
+const NUMBER_CONTINUATION = '号番地';
+
+const DIGIT = '[0-9]';
+const DIGITS = '[0-9]+';
+const HYPHENATED_NUMBER = `${DIGITS}(?:-${DIGITS})*`;
+const group = (items: readonly string[]): string => `(?:${items.join('|')})`;
+const SUFFIX = group(ADDRESS_SUFFIXES);
+const ROOM_SUFFIX = group(ROOM_SUFFIXES);
+const F_NOT_WORD = '(?![A-Za-z])';
+const F_CLEAR_END = String.raw`(?=$|[\s0-9・、,(])`;
+
+const BEFORE_ANY = new RegExp(`^[${CUT_AFTER_ANY}]$`, 'u');
+const BEFORE_NON_NUMBER = new RegExp(
+  `^[0-9${KANJI_NUMERALS}${CUT_AFTER_NUMBER_END}]$`,
+  'u',
+);
+const NUMBER_PART = new RegExp(`^[0-9${NUMBER_CONTINUATION}]$`, 'u');
+const LEADING_NUMBER = new RegExp(`^${HYPHENATED_NUMBER}`, 'u');
+const LEADING_SUFFIX = new RegExp(`^${SUFFIX}`, 'u');
+const TRAILING_SUFFIX = new RegExp(`${SUFFIX}$`, 'u');
+const LEADING_BARS = new RegExp(`^[${HORIZONTAL_BARS}]+`, 'u');
+const FIRST_ASCII_DIGIT = new RegExp(DIGIT, 'u');
+const FRONT_UNMATCHED = new RegExp(
+  `^${DIGITS}(?:${group(NUMBER_SEPARATORS)}${DIGITS})*${SUFFIX}?$`,
+  'u',
+);
+const ENDS_AS_ADDRESS = new RegExp(
+  `${group([DIGIT, ...ADDRESS_SUFFIXES])}$`,
+  'u',
+);
+const CONTINUES_ADDRESS = new RegExp(
+  `^(?:${group([...ADDRESS_SUFFIXES, '[のノ]'])}(?=${DIGIT})|線)`,
+  'u',
+);
+const FLOOR_AFTER_BAR = new RegExp(`^${DIGITS}(?:階|F${F_NOT_WORD})`, 'u');
+const FLOOR_AFTER_SPACE = new RegExp(`^${DIGITS}(?:階|F${F_CLEAR_END})`, 'u');
+const ROOM = new RegExp(`^${DIGITS}${ROOM_SUFFIX}`, 'u');
+const LEADING_DIGIT = new RegExp(`^${DIGIT}`, 'u');
+const SUFFIX_ONLY = new RegExp(`^${SUFFIX}$`, 'u');
 const LEADING_SPACE = /^\s/u;
-const LEADING_DIGITS = /^[0-9]+/u;
-const LEADING_KANJI_NUMERAL = /^[〇一二三四五六七八九十百千]/u;
-const ROOM_AFTER_NUMBERS =
-  /(?<![0-9-])[0-9]+(?:-[0-9]+){2,}(-)[0-9]+(?:号室|室)/du;
+const LEADING_DIGITS = new RegExp(`^${DIGITS}`, 'u');
+const LEADING_KANJI_NUMERAL = new RegExp(`^[${KANJI_NUMERALS}]`, 'u');
+const ROOM_AFTER_NUMBERS = new RegExp(
+  `(?<![0-9-])${DIGITS}(?:-${DIGITS}){2,}(-)${DIGITS}${ROOM_SUFFIX}`,
+  'du',
+);
 
 /** 切れ目の探索の結果 */
 export interface SplitOutcome {
@@ -141,7 +191,7 @@ const continuesWholeNumber = (
   const digits = LEADING_DIGITS.exec(building)?.[0];
   return (
     digits !== undefined &&
-    !CLEAR_FLOOR.test(building) &&
+    !FLOOR_AFTER_SPACE.test(building) &&
     wholeTail(whole).tail === `${frontTail(front)}-${digits}`
   );
 };
@@ -149,7 +199,7 @@ const continuesWholeNumber = (
 const continuesAfterBar = (after: string, building: string): boolean =>
   LEADING_BARS.test(after.trim()) &&
   LEADING_DIGIT.test(building) &&
-  !FLOOR.test(building) &&
+  !FLOOR_AFTER_BAR.test(building) &&
   !ROOM.test(building);
 
 const keepsWholeNumber = (
