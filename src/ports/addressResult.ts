@@ -80,6 +80,6 @@ export interface AddressResult {
   split: SplitStatus;
   /** 全国地方公共団体コード（6桁）と町字 ID（7桁）。無いものは null。codes オプションが true のときだけ入る */
   codes?: { lgCode: string | null; machiazaId: string | null };
-  /** NJA の結果そのもの。nja オプションが true のときだけ入る */
+  /** NJA の結果の写し（書き換えてもほかの結果に影響しない）。nja オプションが true のときだけ入る */
   nja?: Readonly<Record<string, unknown>>;
 }

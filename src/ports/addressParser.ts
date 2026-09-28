@@ -19,7 +19,7 @@ export interface ParsedAddress {
   lgCode: string | null;
   /** 町字 ID（7桁） */
   machiazaId: string | null;
-  /** 解析器が返した結果そのもの */
+  /** 解析器が返した結果の写し */
   raw: Readonly<Record<string, unknown>>;
 }
 

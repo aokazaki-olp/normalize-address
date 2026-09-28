@@ -56,7 +56,8 @@ export interface AddressPoint {
 - `nja` の中の `addr`・`other` は NJA の名前のまま（NJA の結果そのものなので変えない）
 - 字形は、ガード付き NFKC（`@arihirookazaki/normalize-core`）をかけた後の文字列。`prefecture`〜`block` は NJA が返すマスターの表記
 - `codes.lgCode` は全国地方公共団体コード（6桁の文字列）。JAv2 の市区町村コードは数値で先頭のゼロが落ちているので、6桁にそろえる（札幌市中央区 `11011` → `011011`）。`codes.machiazaId` は町字 ID（7桁の文字列）
-- `nja` は NJA の結果をそのまま入れる。NJA の版によって形が変わりうる
+- `nja` は NJA の結果の写し（`structuredClone`）を入れる。NJA の結果の中には NJA のキャッシュのオブジェクト（`metadata.city` など）があり、そのまま渡すと利用者の書き換えが同じプロセスの以後の結果に波及するため
+- `nja` の型は `Readonly<Record<string, unknown>>` のままにする。NJA の版によって形が変わりうるので、スキーマを型に固定しない（規約 §2.7 の「スキーマが本当に存在しない場合は `unknown` のまま」）
 - 公開する値は `AddressNormalizer`（モジュールオブジェクト、規約 §2.1）と `NormalizeAddressError` だけ。型は `AddressNormalizer`・`AddressNormalizerOptions`・`AddressResult`・`AddressStyle`・`AddressLevel`・`AddressPoint` と、normalize-core の `CharStyle`・`CharTarget`・`WidthMode` を再公開する。関数（`applyCharStyle` など）は再公開しない
 - `create` は options を1回だけ検査・準備する（字形の指定の検査と、`default` と項目ごとの指定のマージ）。options が検査を満たさなければ `create` が `TypeError` を投げ、`normalize` は呼ぶ前から使えない。準備したものは写しなので、`create` のあとで options を書き換えても正規化器には効かない
 - NJA の設定・取得処理の差し替え（下記「失敗の扱い」）・住所データのキャッシュはプロセスに1つで、`create` を何回呼んでもすべての正規化器で共有される。取得先（エンドポイント）などは `create` の引数に入れない

@@ -45,6 +45,18 @@ describe('toParsedAddress', () => {
     });
   });
 
+  it('raw は NJA の結果の写し', () => {
+    const raw = toParsedAddress(SAPPORO).raw;
+    assert.notEqual(raw, SAPPORO);
+    assert.deepEqual(raw, SAPPORO);
+    const metadata = raw['metadata'] as { city: { city: string } };
+    metadata.city.city = '書き換え';
+    assert.equal(
+      (SAPPORO.metadata.city as unknown as { city: string }).city,
+      '札幌市',
+    );
+  });
+
   it('市区町村コードを6桁にそろえる', () => {
     const result = {
       ...SAPPORO,

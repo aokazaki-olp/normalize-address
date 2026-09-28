@@ -33,6 +33,7 @@ const toLevel = (level: number): AddressLevel => {
  * NJA の結果を ParsedAddress にする
  *
  * 市区町村コードは数値で先頭のゼロが落ちているので、6桁にそろえる。NJA が返さなかった項目は null にする。
+ * raw は NJA の結果の写し（docs/design.md の「公開 API」の nja）。
  *
  * @param result - NJA の結果
  * @returns 解析の結果
@@ -61,7 +62,7 @@ export const toParsedAddress = (result: NormalizeResult): ParsedAddress => {
         ? null
         : String(cityCode).padStart(LG_CODE_LENGTH, '0'),
     machiazaId: machiazaId ?? null,
-    raw: result,
+    raw: structuredClone(result),
   };
 };
 
