@@ -362,6 +362,24 @@ describe('createAddressNormalizer', () => {
     assert.equal('codes' in result, false);
   });
 
+  it('建物部が長くても RangeError にならない', async () => {
+    const building = 'ビ'.repeat(200000);
+    const parser = createFakeParser({
+      [`東京都渋谷区道玄坂一丁目2番3号 ${building}`]: {
+        ...SHIBUYA,
+        block: '2-3',
+        unmatched: ` ${building}`,
+        level: 8,
+      },
+      東京都渋谷区道玄坂一丁目2番3号: { ...SHIBUYA, block: '2-3', level: 8 },
+    });
+    const result = await createAddressNormalizer(parser).normalize(
+      `東京都渋谷区道玄坂一丁目2番3号 ${building}`,
+    );
+    assert.equal(result.split, 'found');
+    assert.equal(result.building, building);
+  });
+
   it('解析の失敗はそのまま伝える', async () => {
     const failure = new Error('取得の失敗');
     const normalizer = createAddressNormalizer({

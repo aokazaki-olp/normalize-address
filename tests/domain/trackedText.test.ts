@@ -91,6 +91,10 @@ describe('replaceTracked', () => {
     const tracked = trackText('abc');
     assert.equal(replaceTracked(tracked, /x/dgu, 'y'), tracked);
   });
+  it('当たった部分が多くても RangeError にならない', () => {
+    const replaced = replaceTracked(trackText('a-'.repeat(200000)), /-/dgu, '');
+    assert.equal(replaced.text, 'a'.repeat(200000));
+  });
   it('d のフラグが無ければ TypeError', () => {
     assert.throws(() => replaceTracked(trackText('abc'), /b/gu, 'x'), {
       name: 'TypeError',

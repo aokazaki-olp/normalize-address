@@ -52,15 +52,24 @@ export const sliceTracked = (
 });
 
 /**
+ * 配列で渡した TrackedText をつなぐ
+ *
+ * @param parts - つなぐもの（入力の長さに比例して増えるものはこちらで渡す）
+ * @returns つないだ TrackedText
+ */
+export const joinTracked = (parts: readonly TrackedText[]): TrackedText => ({
+  text: parts.map((part) => part.text).join(''),
+  origins: parts.flatMap((part) => part.origins),
+});
+
+/**
  * TrackedText をつなぐ
  *
  * @param parts - つなぐもの
  * @returns つないだ TrackedText
  */
-export const concatTracked = (...parts: TrackedText[]): TrackedText => ({
-  text: parts.map((part) => part.text).join(''),
-  origins: parts.flatMap((part) => part.origins),
-});
+export const concatTracked = (...parts: TrackedText[]): TrackedText =>
+  joinTracked(parts);
 
 const expandTemplate = (
   tracked: TrackedText,
@@ -112,7 +121,7 @@ export const replaceTracked = (
     return tracked;
   }
   parts.push(sliceTracked(tracked, last));
-  return concatTracked(...parts);
+  return joinTracked(parts);
 };
 
 /**

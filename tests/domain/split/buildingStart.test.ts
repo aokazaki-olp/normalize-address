@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { buildingStarts } from '../../../src/domain/split/buildingStart.ts';
+import {
+  buildingStarts,
+  toTextStart,
+} from '../../../src/domain/split/buildingStart.ts';
+import { trackText } from '../../../src/domain/trackedText.ts';
 
 describe('buildingStarts', () => {
   const at = (text: string, part: string): number[] => [text.indexOf(part)];
@@ -53,4 +57,12 @@ describe('buildingStarts', () => {
       assert.deepEqual(buildingStarts(text), expected);
     });
   }
+});
+
+describe('toTextStart', () => {
+  it('空白の後ろが長くても RangeError にならない', () => {
+    const text = `坂1 ${'ビ'.repeat(200000)}`;
+    const tracked = trackText(text);
+    assert.equal(toTextStart(text, tracked, tracked, 2), 2);
+  });
 });

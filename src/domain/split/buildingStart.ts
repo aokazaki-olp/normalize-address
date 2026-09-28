@@ -23,7 +23,16 @@ const separatorOrigins = (text: string, prepared: TrackedText): Set<number> => {
   return separators;
 };
 
-const toTextStart = (
+/**
+ * 整えた写しの空白の位置を、元のテキストでの建物部の始まりの位置に対応づける（docs/design.md の「元のテキストの位置への対応づけ」）
+ *
+ * @param text - ガード付き NFKC をかけたテキスト
+ * @param prepared - text に basicNormalize をかけた写し
+ * @param formatted - prepared に normalizeBasicNormalized をかけた写し
+ * @param space - formatted の中の空白の位置
+ * @returns 元のテキストでの建物部の始まりの位置。使えなければ undefined
+ */
+export const toTextStart = (
   text: string,
   prepared: TrackedText,
   formatted: TrackedText,
@@ -34,8 +43,14 @@ const toTextStart = (
   if (after.length === 0) {
     return undefined;
   }
-  const end = Math.max(-1, ...before) + 1;
-  let start = Math.min(...after);
+  let end = 0;
+  for (const origin of before) {
+    end = Math.max(end, origin + 1);
+  }
+  let start = Number.POSITIVE_INFINITY;
+  for (const origin of after) {
+    start = Math.min(start, origin);
+  }
   if (start < end) {
     return undefined;
   }

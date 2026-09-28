@@ -8,6 +8,7 @@ import {
   concatTracked,
   insertTracked,
   insertedText,
+  joinTracked,
   replaceTracked,
   sliceTracked,
   type TrackedText,
@@ -352,7 +353,7 @@ export const normalizeSpaces = (tracked: TrackedText): TrackedText => {
     parts.push(sliceTracked(tracked, i, i + 1));
     inSpace = false;
   }
-  return concatTracked(...parts);
+  return joinTracked(parts);
 };
 
 /**
@@ -734,7 +735,7 @@ export const addSpacesAroundPunctuation = (
         break;
     }
   }
-  return trimTracked(concatTracked(...parts), (char) => char === ' ', false);
+  return trimTracked(joinTracked(parts), (char) => char === ' ', false);
 };
 
 /**
