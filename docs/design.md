@@ -68,7 +68,7 @@ export interface AddressPoint {
 - `create` は options を1回だけ検査・準備する（字形の指定の検査と、`default` と項目ごとの指定のマージ）。options が検査を満たさなければ `create` が `TypeError` を投げ、`normalize` は呼ぶ前から使えない。準備したものは写しなので、`create` のあとで options を書き換えても正規化器には効かない
 - 値の `AddressNormalizer` は ports の `AddressNormalizerFactory`（`create` を持つ interface。TSDoc はそのメソッドに付ける）で型を注釈する。短縮記法の `{ create }` に付けた TSDoc は tsc が出力する `dist/index.d.ts` に届かないため。`AddressNormalizerFactory` は利用者が名前で使う必要が無いので公開の型に入れない（`typeof AddressNormalizer` で取れる）。この interface の TSDoc に実装（NJA）の事情を書くのは、d.ts に届く場所がここだけで、実装が1つのため（規約 §2.8 の例外）
 - NJA の設定・取得処理の差し替え（下記「失敗の扱い」）・住所データのキャッシュはモジュールの読み込み単位に1つ（worker_threads の worker ごとに別）で、`create` を何回呼んでもすべての正規化器で共有される。取得先（エンドポイント）などは `create` の引数に入れない
-- `create` の入力の誤り（options が object でない、`nja`・`codes` が boolean でない、字形の指定が検査を満たさない）と、`normalize` の入力の誤り（引数が文字列でない）は `TypeError`。それ以外で処理を終えられなかったもの（住所データの取得の失敗、NJA の処理の失敗）は `normalize` が `NormalizeAddressError` を投げる。原因は `cause` を見る（下記「失敗の扱い」）
+- `create` の入力の誤り（options が object でない、`nja`・`codes` が boolean でない、字形の指定が検査を満たさない）と、`normalize` の入力の誤り（引数が文字列でない）は `TypeError`。それ以外で処理を終えられなかったもの（住所データの取得の失敗、NJA の処理の失敗）は `normalize` が `NormalizeAddressError` を投げる。原因は `url`・`status`・`cause` を見る（下記「失敗の扱い」）
 
 ## 処理の流れ
 
@@ -169,8 +169,8 @@ type StyledField =
 
 例外は2種類に分ける。
 
-- `TypeError`：入力の誤りだけ（`create` の options が検査を満たさない、`normalize` の引数が文字列でない）。同じ入力で再試行しても同じ
-- `NormalizeAddressError`：それ以外で、正規化器が処理を終えられなかったもの（住所データの取得の失敗、NJA の処理の失敗）。原因は `cause` を見る。取得の失敗なら、その入力をあとで再試行する価値がある
+- `TypeError`：入力の誤りだけ（このライブラリの不具合を除く。`create` の options が検査を満たさない、`normalize` の引数が文字列でない）。同じ入力で再試行しても同じ
+- `NormalizeAddressError`：それ以外で、正規化器が処理を終えられなかったもの（住所データの取得の失敗、NJA の処理の失敗）。原因は `url`・`status`・`cause` を見る（HTTP のステータスの失敗は `url`・`status` に、元の例外があるときは `cause` に入る。NJA が想定外の level を返したときはどれも無い。下の表）。一時的な失敗（ネットワークの失敗、本文の途中の切断など）を含むので、再試行してよい。同じ失敗が続くこともある。取得の失敗かどうかの見分け方は作らない
 
 ```ts
 export class NormalizeAddressError extends Error {
