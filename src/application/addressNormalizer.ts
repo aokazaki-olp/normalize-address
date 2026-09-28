@@ -1,11 +1,12 @@
 /**
- * normalizeAddress.ts
+ * addressNormalizer.ts
  *
- * @description 住所の正規化の処理の流れ（AddressParser を通して解析する）
+ * @description 住所の正規化器の処理の流れ（AddressParser を通して解析する）
  */
 
 import { guardedNfkc } from '@arihirookazaki/normalize-core';
 import { buildResult } from '../domain/buildResult.ts';
+import { prepareOptions } from '../domain/options.ts';
 import {
   buildingStarts,
   isAddressFront,
@@ -17,14 +18,9 @@ import {
 } from '../domain/split.ts';
 import type { AddressParser, ParsedAddress } from '../ports/addressParser.ts';
 import type {
-  AddressResult,
-  NormalizeAddressOptions,
+  AddressNormalizer,
+  AddressNormalizerOptions,
 } from '../ports/addressResult.ts';
-
-export type NormalizeAddress = (
-  input: string,
-  options?: NormalizeAddressOptions,
-) => Promise<AddressResult>;
 
 const findBuildingStart = async (
   parser: AddressParser,
@@ -79,19 +75,29 @@ const findSplit = async (
 };
 
 /**
- * AddressParser を使う normalizeAddress を作る
+ * AddressParser を使う住所の正規化器を作る
+ *
+ * options はここで1回だけ検査し、字形の指定をマージしておく。
  *
  * @param parser - 住所を解析する依存
- * @returns 住所を正規化する関数
+ * @param options - 字形の指定と、結果に足す項目
+ * @returns 住所の正規化器
+ * @throws {TypeError} options が検査を満たさない場合
  */
-export const createNormalizeAddress =
-  (parser: AddressParser): NormalizeAddress =>
-  async (input, options) => {
-    if (typeof input !== 'string') {
-      throw new TypeError('input には string を指定してください');
-    }
-    const text = guardedNfkc(input);
-    const whole = await parser.parse(text);
-    const outcome = await findSplit(parser, text, whole);
-    return buildResult(input, whole, outcome, options);
+export const createAddressNormalizer = (
+  parser: AddressParser,
+  options?: AddressNormalizerOptions,
+): AddressNormalizer => {
+  const prepared = prepareOptions(options);
+  return {
+    normalize: async (input) => {
+      if (typeof input !== 'string') {
+        throw new TypeError('input には string を指定してください');
+      }
+      const text = guardedNfkc(input);
+      const whole = await parser.parse(text);
+      const outcome = await findSplit(parser, text, whole);
+      return buildResult(input, whole, outcome, prepared);
+    },
   };
+};

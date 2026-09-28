@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { createNormalizeAddress } from '../../src/application/normalizeAddress.ts';
+import type { CharStyle } from '@arihirookazaki/normalize-core';
+
+import { createAddressNormalizer } from '../../src/application/addressNormalizer.ts';
 import type {
   AddressParser,
   ParsedAddress,
@@ -26,11 +28,11 @@ const createFakeParser = (
   };
 };
 
-describe('normalizeAddress', () => {
+describe('createAddressNormalizer', () => {
   it('入力にガード付き NFKC をかけてから解析する', async () => {
     const parser = createFakeParser({});
-    const normalize = createNormalizeAddress(parser);
-    await normalize('ﾆｾｺ１');
+    const normalizer = createAddressNormalizer(parser);
+    await normalizer.normalize('ﾆｾｺ１');
     assert.deepEqual(parser.calls, ['ニセコ1']);
   });
 
@@ -43,7 +45,8 @@ describe('normalizeAddress', () => {
         level: 2,
       },
     });
-    const result = await createNormalizeAddress(parser)('東京都渋谷区1ビル');
+    const result =
+      await createAddressNormalizer(parser).normalize('東京都渋谷区1ビル');
     assert.equal(result.split, 'skipped');
     assert.equal(result.building, '');
     assert.equal(result.other, '1ビル');
@@ -60,7 +63,9 @@ describe('normalizeAddress', () => {
       },
     });
     const result =
-      await createNormalizeAddress(parser)('東京都渋谷区道玄坂1-2-3');
+      await createAddressNormalizer(parser).normalize(
+        '東京都渋谷区道玄坂1-2-3',
+      );
     assert.equal(result.split, 'none');
     assert.equal(result.building, '');
     assert.equal(parser.calls.length, 1);
@@ -71,7 +76,9 @@ describe('normalizeAddress', () => {
       '東京都渋谷区道玄坂1-9-9': { ...SHIBUYA, other: '9-9', level: 3 },
     });
     const result =
-      await createNormalizeAddress(parser)('東京都渋谷区道玄坂1-9-9');
+      await createAddressNormalizer(parser).normalize(
+        '東京都渋谷区道玄坂1-9-9',
+      );
     assert.equal(result.split, 'none');
     assert.equal(result.other, '9-9');
   });
@@ -92,7 +99,7 @@ describe('normalizeAddress', () => {
         point: { lat: 35.5, lng: 139.5, level: 8 },
       },
     });
-    const result = await createNormalizeAddress(parser)(
+    const result = await createAddressNormalizer(parser).normalize(
       '東京都渋谷区道玄坂1-2-3 タワー１２Ｆ',
     );
     assert.deepEqual(result, {
@@ -125,7 +132,7 @@ describe('normalizeAddress', () => {
         level: 3,
       },
     });
-    const result = await createNormalizeAddress(parser)(
+    const result = await createAddressNormalizer(parser).normalize(
       '東京都渋谷区道玄坂1丁目 28番地ビル',
     );
     assert.equal(result.split, 'found');
@@ -165,7 +172,9 @@ describe('normalizeAddress', () => {
       },
     });
     const result =
-      await createNormalizeAddress(parser)('京都府京都市X町12-3 ビル');
+      await createAddressNormalizer(parser).normalize(
+        '京都府京都市X町12-3 ビル',
+      );
     assert.equal(result.split, 'found');
     assert.equal(result.building, 'ビル');
     assert.equal(result.other, '12-3');
@@ -185,7 +194,7 @@ describe('normalizeAddress', () => {
         level: 3,
       },
     });
-    const result = await createNormalizeAddress(parser)(
+    const result = await createAddressNormalizer(parser).normalize(
       '東京都渋谷区道玄坂一丁目28番9号2階',
     );
     assert.equal(result.split, 'found');
@@ -205,7 +214,7 @@ describe('normalizeAddress', () => {
         level: 3,
       },
     });
-    const result = await createNormalizeAddress(parser)(
+    const result = await createAddressNormalizer(parser).normalize(
       '東京都渋谷区道玄坂一丁目5番15-2号',
     );
     assert.equal(result.split, 'none');
@@ -221,7 +230,9 @@ describe('normalizeAddress', () => {
       '東京都渋谷区道玄坂1-20': { ...SHIBUYA, other: '20', level: 3 },
     });
     const result =
-      await createNormalizeAddress(parser)('東京都渋谷区道玄坂1-20-B1F');
+      await createAddressNormalizer(parser).normalize(
+        '東京都渋谷区道玄坂1-20-B1F',
+      );
     assert.equal(result.split, 'found');
     assert.equal(result.building, 'B1F');
     assert.equal(result.other, '20');
@@ -233,7 +244,9 @@ describe('normalizeAddress', () => {
       '東京都渋谷区道玄坂1-20': { ...SHIBUYA, other: '20', level: 3 },
     });
     const result =
-      await createNormalizeAddress(parser)('東京都渋谷区道玄坂1-20-');
+      await createAddressNormalizer(parser).normalize(
+        '東京都渋谷区道玄坂1-20-',
+      );
     assert.equal(result.split, 'none');
     assert.equal(result.building, '');
     assert.equal(result.other, '20-');
@@ -249,7 +262,9 @@ describe('normalizeAddress', () => {
       },
     });
     const result =
-      await createNormalizeAddress(parser)('東京都渋谷区道玄坂1-2-3ビル');
+      await createAddressNormalizer(parser).normalize(
+        '東京都渋谷区道玄坂1-2-3ビル',
+      );
     assert.equal(result.split, 'unresolved');
     assert.equal(result.building, '');
     assert.equal(result.other, 'ビル');
@@ -272,14 +287,11 @@ describe('normalizeAddress', () => {
         lgCode: '131130',
       },
     });
-    const result = await createNormalizeAddress(parser)(
-      '東京都渋谷区道玄坂1-2-3',
-      {
-        codes: true,
-        nja: true,
-        style: { fields: { number: { digit: 'full' } } },
-      },
-    );
+    const result = await createAddressNormalizer(parser, {
+      codes: true,
+      nja: true,
+      style: { fields: { number: { digit: 'full' } } },
+    }).normalize('東京都渋谷区道玄坂1-2-3');
     assert.equal(result.number, '２-３');
     assert.deepEqual(result.codes, { lgCode: '131130' });
     assert.deepEqual(result.nja, { text: '東京都渋谷区道玄坂1-2-3' });
@@ -287,36 +299,76 @@ describe('normalizeAddress', () => {
 
   it('input が文字列でなければ TypeError で、解析しない', async () => {
     const parser = createFakeParser({});
-    const normalize = createNormalizeAddress(parser);
+    const normalizer = createAddressNormalizer(parser);
     const inputs: unknown[] = [undefined, null, 1, {}];
     for (const input of inputs) {
-      await assert.rejects(normalize(input as string), TypeError);
+      await assert.rejects(normalizer.normalize(input as string), TypeError);
     }
     assert.equal(parser.calls.length, 0);
   });
 
-  it('字形の指定が検査を満たさなければ TypeError', async () => {
+  it('字形の指定が検査を満たさなければ、作るときに TypeError で、解析しない', () => {
     const parser = createFakeParser({ 東京都: { prefecture: '東京都' } });
-    await assert.rejects(
-      createNormalizeAddress(parser)('東京都', {
-        style: { default: { chars: { ab: 'x' } } },
-      }),
+    assert.throws(
+      () =>
+        createAddressNormalizer(parser, {
+          style: { default: { chars: { ab: 'x' } } },
+        }),
       TypeError,
     );
+    assert.equal(parser.calls.length, 0);
+  });
+
+  it('同じ正規化器で何回も正規化できる', async () => {
+    const parser = createFakeParser({
+      '東京都渋谷区道玄坂1-2-3': {
+        ...SHIBUYA,
+        number: '2-3',
+        level: 8,
+      },
+      '東京都渋谷区道玄坂1-2-4': {
+        ...SHIBUYA,
+        number: '2-4',
+        level: 8,
+      },
+    });
+    const normalizer = createAddressNormalizer(parser, {
+      style: { fields: { number: { digit: 'full' } } },
+    });
+    const first = await normalizer.normalize('東京都渋谷区道玄坂1-2-3');
+    const second = await normalizer.normalize('東京都渋谷区道玄坂1-2-4');
+    const again = await normalizer.normalize('東京都渋谷区道玄坂1-2-3');
+    assert.equal(first.number, '２-３');
+    assert.equal(second.number, '２-４');
+    assert.deepEqual(again, first);
+  });
+
+  it('作ったあとで options を書き換えても効かない', async () => {
+    const parser = createFakeParser({
+      '東京都渋谷区道玄坂1-2-3': { ...SHIBUYA, number: '2-3', level: 8 },
+    });
+    const charStyle: CharStyle = { digit: 'full' };
+    const options = { codes: false, style: { default: charStyle } };
+    const normalizer = createAddressNormalizer(parser, options);
+    options.codes = true;
+    charStyle.digit = 'half';
+    const result = await normalizer.normalize('東京都渋谷区道玄坂1-2-3');
+    assert.equal(result.number, '２-３');
+    assert.equal('codes' in result, false);
   });
 
   it('解析の失敗はそのまま伝える', async () => {
     const failure = new Error('取得の失敗');
-    const normalize = createNormalizeAddress({
+    const normalizer = createAddressNormalizer({
       parse: async () => {
         throw failure;
       },
     });
-    await assert.rejects(normalize('東京都'), failure);
+    await assert.rejects(normalizer.normalize('東京都'), failure);
   });
 });
 
-describe('normalizeAddress（偽の parser が NJA 3.1.3 の実際の値を返す例）', () => {
+describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値を返す例）', () => {
   const SAPPORO = {
     prefecture: '北海道',
     city: '札幌市中央区',
@@ -931,7 +983,7 @@ describe('normalizeAddress（偽の parser が NJA 3.1.3 の実際の値を返�
   for (const [name, input, results, expected] of cases) {
     it(name, async () => {
       const parser = createFakeParser(results);
-      const result = await createNormalizeAddress(parser)(input);
+      const result = await createAddressNormalizer(parser).normalize(input);
       const actual = Object.fromEntries(
         Object.keys(expected).map((key) => [
           key,

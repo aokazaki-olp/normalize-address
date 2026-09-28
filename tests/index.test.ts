@@ -4,16 +4,38 @@ import { describe, it } from 'node:test';
 import * as publicApi from '../src/index.ts';
 
 describe('公開面', () => {
-  it('normalizeAddress と NormalizeAddressError だけを値として公開する', () => {
+  it('AddressNormalizer と NormalizeAddressError だけを値として公開する', () => {
     assert.deepEqual(Object.keys(publicApi).toSorted(), [
+      'AddressNormalizer',
       'NormalizeAddressError',
-      'normalizeAddress',
     ]);
+    assert.deepEqual(Object.keys(publicApi.AddressNormalizer), ['create']);
+  });
+
+  it('字形の指定が検査を満たさなければ、create が TypeError を投げる（normalize を呼ばなくても分かる）', () => {
+    assert.throws(
+      () =>
+        publicApi.AddressNormalizer.create({
+          style: { default: { chars: { ab: 'x' } } },
+        }),
+      TypeError,
+    );
+  });
+
+  it('options が object でなければ、create が TypeError を投げる', () => {
+    assert.throws(
+      () =>
+        publicApi.AddressNormalizer.create(
+          'codes' as unknown as publicApi.AddressNormalizerOptions,
+        ),
+      TypeError,
+    );
   });
 
   it('input が文字列でなければ TypeError（NJA を呼ばない）', async () => {
+    const normalizer = publicApi.AddressNormalizer.create();
     await assert.rejects(
-      publicApi.normalizeAddress(1 as unknown as string),
+      normalizer.normalize(1 as unknown as string),
       TypeError,
     );
   });

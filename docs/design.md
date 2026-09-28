@@ -7,12 +7,16 @@
 ## 公開 API
 
 ```ts
-export const normalizeAddress: (
-  input: string,
-  options?: NormalizeAddressOptions,
-) => Promise<AddressResult>;
+export const AddressNormalizer = { create };
 
-export interface NormalizeAddressOptions {
+// 住所の正規化器を作る。options は create のときに1回だけ検査・準備する
+const create: (options?: AddressNormalizerOptions) => AddressNormalizer;
+
+export interface AddressNormalizer {
+  normalize(input: string): Promise<AddressResult>;
+}
+
+export interface AddressNormalizerOptions {
   style?: AddressStyle; // 字形の指定（下記）
   nja?: boolean; // true なら NJA の結果（手順2）を result.nja に入れる
   codes?: boolean; // true なら result.codes を入れる
@@ -38,7 +42,10 @@ export interface AddressResult {
 - 字形は、ガード付き NFKC（`@arihirookazaki/normalize-core`）をかけた後の文字列。`prefecture`〜`number` は NJA が返すマスターの表記
 - `codes.lgCode` は全国地方公共団体コード（6桁の文字列）。JAv2 の市区町村コードは数値で先頭のゼロが落ちているので、6桁にそろえる（札幌市中央区 `11011` → `011011`）。`codes.machiazaId` は町字 ID（7桁の文字列）
 - `nja` は NJA の結果をそのまま入れる。NJA の版によって形が変わりうる
-- 入力の誤り（引数が文字列でない、字形の指定が検査を満たさない）は `TypeError`。それ以外で処理を終えられなかったものは `NormalizeAddressError` を投げる（下記「失敗の扱い」）
+- 公開する値は `AddressNormalizer`（モジュールオブジェクト、規約 §2.1）と `NormalizeAddressError` だけ。型は `AddressNormalizer`・`AddressNormalizerOptions`・`AddressResult`・`AddressStyle` と、normalize-core の `CharStyle`・`CharTarget`・`WidthMode` を再公開する。関数（`applyCharStyle` など）は再公開しない
+- `create` は options を1回だけ検査・準備する（字形の指定の検査と、`default` と項目ごとの指定のマージ）。options が検査を満たさなければ `create` が `TypeError` を投げ、`normalize` は呼ぶ前から使えない。準備したものは写しなので、`create` のあとで options を書き換えても正規化器には効かない
+- NJA の設定・取得処理の差し替え（下記「失敗の扱い」）・住所データのキャッシュはプロセスに1つで、`create` を何回呼んでもすべての正規化器で共有される。取得先（エンドポイント）などは `create` の引数に入れない
+- `create` の入力の誤り（options が object でない、`nja`・`codes` が boolean でない、字形の指定が検査を満たさない）と、`normalize` の入力の誤り（引数が文字列でない）は `TypeError`。それ以外で処理を終えられなかったものは `normalize` が `NormalizeAddressError` を投げる（下記「失敗の扱い」）
 
 ## 処理の流れ
 
@@ -128,12 +135,13 @@ type StyledField =
 - 各項目には、まずガード付き NFKC をかけ（マスターの全角 `相生１号` などを半角にそろえる）、そのあと `default` に項目ごとの指定をマージしたものを当てる。項目ごとの指定が `false` なら、字形の指定は当てない（ガード付き NFKC だけ）
 - `input` には何もかけない。`nja` にもかけない
 - 字形の指定は出力の直前にだけ当てる。処理の途中（手順1〜8）は当てない
+- 検査とマージは `create` で1回だけ行う。`style`・`default`・`fields` は object、`fields` のキーは上の6項目、値は `CharStyle` か `false`。マージした指定は項目ごとに normalize-core の検査（`applyCharStyle` と同じもの）にかける
 
 ## 失敗の扱い
 
 例外は2種類に分ける。
 
-- `TypeError`：入力の誤りだけ（引数が文字列でない、字形の指定が検査を満たさない）。同じ入力で再試行しても同じ
+- `TypeError`：入力の誤りだけ（`create` の options が検査を満たさない、`normalize` の引数が文字列でない）。同じ入力で再試行しても同じ
 - `NormalizeAddressError`：それ以外で、正規化器が処理を終えられなかったもの。その入力をあとで再試行する価値がある（ただし NJA の想定外の level は、再試行しても同じ）
 
 ```ts
@@ -158,16 +166,16 @@ export class NormalizeAddressError extends Error {
 
 NJA 3.1.3 は取得した応答が正常かを確かめず、住居表示・地番のデータでエラーが返ると例外にならずに level 3 に落ち、その結果がキャッシュされる。NJA が公開している `requestHandlers.http` を差し替え、上の取得の失敗を検査して `NormalizeAddressError` を投げる。取得処理が投げた例外もここで包む（包まないと `TypeError` として出て、入力の誤りと区別できない）。
 
-`requestHandlers` はモジュール全体で1つなので、差し替えは最初の呼び出しの前に1回だけ行う。同じプロセスで NJA を直接使う別のコードがあれば、その挙動も変わる。
+`requestHandlers` はモジュール全体で1つなので、差し替えは最初の解析の前に1回だけ行う。`create` を何回呼んでも差し替えは1回で、すべての正規化器が同じ取得処理と住所データのキャッシュを使う。同じプロセスで NJA を直接使う別のコードがあれば、その挙動も変わる。
 
 ## レイヤーと依存の向き
 
 ```
 src/
-  index.ts       公開面。既定の実装を組み立てて normalizeAddress を公開する
+  index.ts       公開面。NJA の AddressParser を1つ作り、それを使う create を AddressNormalizer として公開する
   application/   処理の流れ（手順1〜8）。ports の AddressParser だけを通して解析する
-  domain/        純粋な処理（切れ目の候補、建物部の始まりの位置と abrg の規則の移植、住所の末尾、結果の比較と組み立て）
-  ports/         インターフェース（AddressParser）と型だけ
+  domain/        純粋な処理（options の検査と準備、切れ目の候補、建物部の始まりの位置と abrg の規則の移植、住所の末尾、結果の比較と組み立て）
+  ports/         インターフェース（AddressParser、AddressNormalizer）と型だけ
   adapters/      外部との接続。NJA と取得の失敗の判定、NormalizeAddressError
 ```
 
@@ -181,6 +189,8 @@ src/
 
 - この表を lint で止める。動的 `import()` も同じ
 - `NormalizeAddressError` は adapters に置く。投げるのは adapters だけで、application と domain は受け取らずにそのまま伝える。ports は型だけの層で、クラス（値）を置くと application・domain が値として import できるようになるため置かない。公開は `index.ts` が adapters から再 export する
+- application は `createAddressNormalizer(parser, options)` で正規化器を作る。`index.ts` の `create` はこれに NJA の AddressParser を渡すだけ
+- 型の `AddressNormalizer` は ports の interface を、`index.ts` で同名の type 別名にして公開する。同名の値（モジュールオブジェクト）と並べるため。ports から `export type { AddressNormalizer }` で再 export すると値と衝突して型チェックが落ちる（TS2323）
 - テストでは、決まった結果を返す偽の `AddressParser` を注入すれば、NJA もネットワークも使わずに手順1〜8を確かめられる。取得の失敗の判定は、偽の取得関数を渡して確かめる
 
 ## 依存
