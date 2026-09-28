@@ -65,6 +65,24 @@ export const toParsedAddress = (result: NormalizeResult): ParsedAddress => {
   };
 };
 
+/**
+ * NJA の normalize が投げた例外を NormalizeAddressError にそろえる
+ *
+ * NJA は応答の本文を取得処理の外で読むので、本文の読み取りの失敗などは取得処理の検査では包めない（docs/design.md の「失敗の扱い」）。
+ *
+ * @param error - NJA の normalize が投げた値
+ * @returns name が NormalizeAddressError の Error はそのまま、それ以外は元の値を cause に入れた NormalizeAddressError
+ */
+export const toNormalizeAddressError = (error: unknown): Error =>
+  Error.isError(error) && error.name === 'NormalizeAddressError'
+    ? error
+    : new NormalizeAddressError(
+        'NJA の処理に失敗しました',
+        undefined,
+        undefined,
+        { cause: error },
+      );
+
 let checkedHttpInstalled = false;
 
 // requestHandlers はモジュール全体で1つなので、差し替えは1回だけ行う
@@ -80,12 +98,19 @@ const installCheckedHttp = (): void => {
  * NJA を使う AddressParser を作る
  *
  * 最初の解析の前に、NJA の取得処理（requestHandlers.http）を応答のステータスを検査するものに差し替える。
+ * NJA の normalize が投げた例外は NormalizeAddressError にそろえる。
  *
  * @returns AddressParser
  */
 export const createNjaParser = (): AddressParser => ({
   parse: async (text) => {
     installCheckedHttp();
-    return toParsedAddress(await normalize(text));
+    let result: NormalizeResult;
+    try {
+      result = await normalize(text);
+    } catch (error) {
+      throw toNormalizeAddressError(error);
+    }
+    return toParsedAddress(result);
   },
 });

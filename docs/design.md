@@ -60,7 +60,7 @@ export interface AddressPoint {
 - 公開する値は `AddressNormalizer`（モジュールオブジェクト、規約 §2.1）と `NormalizeAddressError` だけ。型は `AddressNormalizer`・`AddressNormalizerOptions`・`AddressResult`・`AddressStyle`・`AddressLevel`・`AddressPoint` と、normalize-core の `CharStyle`・`CharTarget`・`WidthMode` を再公開する。関数（`applyCharStyle` など）は再公開しない
 - `create` は options を1回だけ検査・準備する（字形の指定の検査と、`default` と項目ごとの指定のマージ）。options が検査を満たさなければ `create` が `TypeError` を投げ、`normalize` は呼ぶ前から使えない。準備したものは写しなので、`create` のあとで options を書き換えても正規化器には効かない
 - NJA の設定・取得処理の差し替え（下記「失敗の扱い」）・住所データのキャッシュはプロセスに1つで、`create` を何回呼んでもすべての正規化器で共有される。取得先（エンドポイント）などは `create` の引数に入れない
-- `create` の入力の誤り（options が object でない、`nja`・`codes` が boolean でない、字形の指定が検査を満たさない）と、`normalize` の入力の誤り（引数が文字列でない）は `TypeError`。それ以外で処理を終えられなかったものは `normalize` が `NormalizeAddressError` を投げる（下記「失敗の扱い」）
+- `create` の入力の誤り（options が object でない、`nja`・`codes` が boolean でない、字形の指定が検査を満たさない）と、`normalize` の入力の誤り（引数が文字列でない）は `TypeError`。それ以外で処理を終えられなかったもの（住所データの取得の失敗、NJA の処理の失敗）は `normalize` が `NormalizeAddressError` を投げる。原因は `cause` を見る（下記「失敗の扱い」）
 
 ## 処理の流れ
 
@@ -162,7 +162,7 @@ type StyledField =
 例外は2種類に分ける。
 
 - `TypeError`：入力の誤りだけ（`create` の options が検査を満たさない、`normalize` の引数が文字列でない）。同じ入力で再試行しても同じ
-- `NormalizeAddressError`：それ以外で、正規化器が処理を終えられなかったもの。その入力をあとで再試行する価値がある（ただし NJA の想定外の level は、再試行しても同じ）
+- `NormalizeAddressError`：それ以外で、正規化器が処理を終えられなかったもの（住所データの取得の失敗、NJA の処理の失敗）。原因は `cause` を見る。取得の失敗なら、その入力をあとで再試行する価値がある
 
 ```ts
 export class NormalizeAddressError extends Error {
@@ -183,8 +183,11 @@ export class NormalizeAddressError extends Error {
 | 住所データのそれ以外の取得で 2xx 以外                                                                 | あり  | あり     | なし     |
 | 取得処理そのものが例外を投げた（Node の fetch の `TypeError: fetch failed` などのネットワークの失敗） | あり  | なし     | 元の例外 |
 | NJA が想定外の level（0・1・2・3・8 以外）を返した                                                    | なし  | なし     | なし     |
+| NJA がそのほかの例外を投げた（取得した本文の読み取りの失敗など）                                      | なし  | なし     | 元の例外 |
 
 NJA 3.1.3 は取得した応答が正常かを確かめず、住居表示・地番のデータでエラーが返ると例外にならずに level 3 に落ち、その結果がキャッシュされる。NJA が公開している `requestHandlers.http` を差し替え、上の取得の失敗を検査して `NormalizeAddressError` を投げる。取得処理が投げた例外もここで包む（包まないと `TypeError` として出て、入力の誤りと区別できない）。
+
+NJA は応答の本文を取得処理の外で読む（NJA 3.1.3 の `dist/main-node-esm.mjs` の 503・551・566・939 行）ので、本文の途中の切断（`TypeError: terminated`）、2xx で本文が JSON でない（`SyntaxError`）、形の違う JSON（`TypeError`）、`file://` の取得先が無い（`ENOENT`）、未知のスキーム（`Error`）などは取得処理の差し替えでは包めない。そのため adapters の AddressParser で、NJA の `normalize` が投げた例外のうち `NormalizeAddressError` でないもの（判定は `name`）を、すべて `NormalizeAddressError` で包む（`url`・`status` は `undefined`、`cause` に元の例外）。私たちの domain・application の不具合で出る例外は包まない（NJA との境界の外なので）。
 
 `requestHandlers` はモジュール全体で1つなので、差し替えは最初の解析の前に1回だけ行う。`create` を何回呼んでも差し替えは1回で、すべての正規化器が同じ取得処理と住所データのキャッシュを使う。同じプロセスで NJA を直接使う別のコードがあれば、その挙動も変わる。
 
