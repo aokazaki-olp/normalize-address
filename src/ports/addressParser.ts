@@ -4,28 +4,21 @@
  * @description 住所を解析する依存（AddressParser）の契約
  */
 
-export type AddressLevel = 0 | 1 | 2 | 3 | 8;
+import type { AddressLevel, AddressPoint } from './addressResult.ts';
 
-/** 解析の結果の位置情報 */
-export interface AddressPoint {
-  lat: number;
-  lng: number;
-  level: number;
-}
-
-/** 住所を1回解析した結果 */
+/** 住所を1回解析した結果。読めなかった項目は null */
 export interface ParsedAddress {
-  prefecture?: string;
-  city?: string;
-  town?: string;
-  block?: string;
+  prefecture: string | null;
+  city: string | null;
+  town: string | null;
+  block: string | null;
   unmatched: string;
   level: AddressLevel;
-  point?: AddressPoint;
+  point: AddressPoint | null;
   /** 全国地方公共団体コード（6桁） */
-  lgCode?: string;
+  lgCode: string | null;
   /** 町字 ID（7桁） */
-  machiazaId?: string;
+  machiazaId: string | null;
   /** 解析器が返した結果そのもの */
   raw: Readonly<Record<string, unknown>>;
 }

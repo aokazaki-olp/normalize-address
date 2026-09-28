@@ -12,6 +12,12 @@ describe('公開面', () => {
     assert.deepEqual(Object.keys(publicApi.AddressNormalizer), ['create']);
   });
 
+  it('AddressLevel と AddressPoint を型として公開する', () => {
+    const level: publicApi.AddressLevel = 8;
+    const point: publicApi.AddressPoint = { lat: 35, lng: 139, level };
+    assert.deepEqual(point, { lat: 35, lng: 139, level: 8 });
+  });
+
   it('字形の指定が検査を満たさなければ、create が TypeError を投げる（normalize を呼ばなくても分かる）', () => {
     assert.throws(
       () =>

@@ -22,9 +22,19 @@ const createFakeParser = (
     parse: async (text) => {
       calls.push(text);
       const result = results[text];
-      return result === undefined
-        ? { unmatched: text, level: 0, raw: { text } }
-        : { unmatched: '', level: 0, raw: { text }, ...result };
+      const empty = {
+        prefecture: null,
+        city: null,
+        town: null,
+        block: null,
+        unmatched: result === undefined ? text : '',
+        level: 0,
+        point: null,
+        lgCode: null,
+        machiazaId: null,
+        raw: { text },
+      } satisfies ParsedAddress;
+      return Object.assign(empty, result);
     },
   };
 };
@@ -179,7 +189,7 @@ describe('createAddressNormalizer', () => {
     assert.equal(result.split, 'found');
     assert.equal(result.building, 'ビル');
     assert.equal(result.unmatched, '12-3');
-    assert.equal(result.block, undefined);
+    assert.equal(result.block, null);
   });
 
   it('号の直後で切る', async () => {
@@ -298,7 +308,7 @@ describe('createAddressNormalizer', () => {
       style: { fields: { block: { digit: 'full' } } },
     }).normalize('東京都渋谷区道玄坂1-2-3');
     assert.equal(result.block, '２-３');
-    assert.deepEqual(result.codes, { lgCode: '131130' });
+    assert.deepEqual(result.codes, { lgCode: '131130', machiazaId: null });
     assert.deepEqual(result.nja, { text: '東京都渋谷区道玄坂1-2-3' });
   });
 

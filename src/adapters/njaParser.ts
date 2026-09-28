@@ -9,11 +9,8 @@ import {
   requestHandlers,
   type NormalizeResult,
 } from '@geolonia/normalize-japanese-addresses';
-import type {
-  AddressLevel,
-  AddressParser,
-  ParsedAddress,
-} from '../ports/addressParser.ts';
+import type { AddressParser, ParsedAddress } from '../ports/addressParser.ts';
+import type { AddressLevel } from '../ports/addressResult.ts';
 import { createCheckedHttp } from './checkedHttp.ts';
 import { NormalizeAddressError } from './normalizeAddressError.ts';
 
@@ -35,7 +32,7 @@ const toLevel = (level: number): AddressLevel => {
 /**
  * NJA の結果を ParsedAddress にする
  *
- * 市区町村コードは数値で先頭のゼロが落ちているので、6桁にそろえる。
+ * 市区町村コードは数値で先頭のゼロが落ちているので、6桁にそろえる。NJA が返さなかった項目は null にする。
  *
  * @param result - NJA の結果
  * @returns 解析の結果
@@ -45,25 +42,25 @@ export const toParsedAddress = (result: NormalizeResult): ParsedAddress => {
   const cityCode = result.metadata.city?.code;
   const machiazaId = result.metadata.machiAza?.machiaza_id;
   return {
-    ...(result.pref === undefined ? {} : { prefecture: result.pref }),
-    ...(result.city === undefined ? {} : { city: result.city }),
-    ...(result.town === undefined ? {} : { town: result.town }),
-    ...(result.addr === undefined ? {} : { block: result.addr }),
+    prefecture: result.pref ?? null,
+    city: result.city ?? null,
+    town: result.town ?? null,
+    block: result.addr ?? null,
     unmatched: result.other,
     level: toLevel(result.level),
-    ...(result.point === undefined
-      ? {}
-      : {
-          point: {
+    point:
+      result.point === undefined
+        ? null
+        : {
             lat: result.point.lat,
             lng: result.point.lng,
             level: result.point.level,
           },
-        }),
-    ...(cityCode === undefined
-      ? {}
-      : { lgCode: String(cityCode).padStart(LG_CODE_LENGTH, '0') }),
-    ...(machiazaId === undefined ? {} : { machiazaId }),
+    lgCode:
+      cityCode === undefined
+        ? null
+        : String(cityCode).padStart(LG_CODE_LENGTH, '0'),
+    machiazaId: machiazaId ?? null,
     raw: result,
   };
 };

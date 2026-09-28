@@ -52,8 +52,19 @@ describe('buildResult', () => {
       },
     );
   });
-  it('無い項目は入れない', () => {
-    const whole = { unmatched: 'x', level: 0, raw: {} } as const;
+  it('無い項目は null にする', () => {
+    const whole: ParsedAddress = {
+      prefecture: null,
+      city: null,
+      town: null,
+      block: null,
+      unmatched: 'x',
+      level: 0,
+      point: null,
+      lgCode: null,
+      machiazaId: null,
+      raw: {},
+    };
     const result = buildResult(
       'x',
       whole,
@@ -62,9 +73,14 @@ describe('buildResult', () => {
     );
     assert.deepEqual(result, {
       input: 'x',
+      prefecture: null,
+      city: null,
+      town: null,
+      block: null,
       building: '',
       unmatched: 'x',
       level: 0,
+      point: null,
       split: 'skipped',
     });
   });
@@ -86,20 +102,26 @@ describe('buildResult', () => {
     assert.equal('codes' in without, false);
     assert.equal('nja' in without, false);
   });
-  it('コードが無ければ codes は空', () => {
-    const whole = {
+  it('コードが無ければ codes の中身は null', () => {
+    const whole: ParsedAddress = {
+      prefecture: '北海道',
+      city: null,
+      town: null,
+      block: null,
       unmatched: '',
       level: 1,
-      prefecture: '北海道',
+      point: null,
+      lgCode: null,
+      machiazaId: null,
       raw: {},
-    } as const;
+    };
     const result = buildResult(
       'x',
       whole,
       { split: 'skipped', fieldsFrom: whole, unmatched: '', building: '' },
       prepareOptions({ codes: true }),
     );
-    assert.deepEqual(result.codes, {});
+    assert.deepEqual(result.codes, { lgCode: null, machiazaId: null });
   });
   it('住所の項目・level・point・codes は前半の結果、nja は全体の結果から取る', () => {
     const front = {

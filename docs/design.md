@@ -24,19 +24,31 @@ export interface AddressNormalizerOptions {
 
 export interface AddressResult {
   input: string; // 渡された文字列そのまま
-  prefecture?: string; // NJA の pref
-  city?: string; // NJA の city（郡＋市区町村＋政令市の区）
-  town?: string; // NJA の town（町字：大字・丁目・小字）
-  block?: string; // NJA の addr（番地等：街区符号-住居番号、または地番）
+  prefecture: string | null; // NJA の pref。読めなければ null
+  city: string | null; // NJA の city（郡＋市区町村＋政令市の区）。読めなければ null
+  town: string | null; // NJA の town（町字：大字・丁目・小字）。読めなければ null
+  block: string | null; // NJA の addr（番地等：街区符号-住居番号、または地番）。読めなければ null
   building: string; // 建物部。無ければ ''
-  unmatched: string; // データで確かめられなかった住所の残り（NJA の other にあたる）
-  level: 0 | 1 | 2 | 3 | 8; // NJA の level
-  point?: { lat: number; lng: number; level: number };
+  unmatched: string; // データで確かめられなかった住所の残り（NJA の other にあたる）。無ければ ''
+  level: AddressLevel; // NJA の level
+  point: AddressPoint | null; // 位置情報。無ければ null
   split: 'found' | 'none' | 'unresolved' | 'skipped';
-  codes?: { lgCode?: string; machiazaId?: string };
-  nja?: Readonly<Record<string, unknown>>;
+  codes?: { lgCode: string | null; machiazaId: string | null }; // codes が true のときだけ置く
+  nja?: Readonly<Record<string, unknown>>; // nja が true のときだけ置く
+}
+
+export type AddressLevel = 0 | 1 | 2 | 3 | 8;
+
+export interface AddressPoint {
+  lat: number;
+  lng: number;
+  level: number;
 }
 ```
+
+- 読めなかった項目（`prefecture`〜`block`・`point`・`codes` の `lgCode`・`machiazaId`）は、省かずに `null` を置く。利用者が結果を ORM や DB にそのまま渡すため（ユーザーの決定）。たとえば Prisma では、値に `undefined` を渡すとその項目はクエリに含まれない（"if `undefined` is passed as a value, it is not included in the generated query"。Prisma ORM v7 の文書 `prisma.io/docs/orm/prisma-client/special-fields-and-types/null-and-undefined`、2026-09-28 確認）
+- `building`・`unmatched` は文字列のまま。`''` が「無い」を表す
+- `codes`・`nja` は、オプションが `true` のときだけ置く（`false` や省略のときは項目そのものが無い）
 
 - 名前は NJA の分け方に合わせ、`pref` は正式な語 `prefecture` にする。`city`・`town` の中身は NJA の定義のまま
 - `block` は NJA の `addr`。日本郵便の郵便番号・デジタルアドレス API の `block_name`（説明は「番地等文字列」、英語の説明は "block name"。API 仕様書 1.1.0.260723、2026-09-28 確認）に名前を合わせた。住居表示の地域では「街区符号-住居番号」（例 `21-3`）、地番の地域では地番（例 `3060-1`）。地番の地域では、道路で囲まれた街区ではなく一筆の土地を指す。OSM の `addr:block_number` とは指すものが違う（英語版 wiki は道路で囲まれた区域の番号、日本語版 wiki は「街区符号または番地」で、住居番号・枝番号は `addr:housenumber` に分ける。2026-09-28 確認）
@@ -45,7 +57,7 @@ export interface AddressResult {
 - 字形は、ガード付き NFKC（`@arihirookazaki/normalize-core`）をかけた後の文字列。`prefecture`〜`block` は NJA が返すマスターの表記
 - `codes.lgCode` は全国地方公共団体コード（6桁の文字列）。JAv2 の市区町村コードは数値で先頭のゼロが落ちているので、6桁にそろえる（札幌市中央区 `11011` → `011011`）。`codes.machiazaId` は町字 ID（7桁の文字列）
 - `nja` は NJA の結果をそのまま入れる。NJA の版によって形が変わりうる
-- 公開する値は `AddressNormalizer`（モジュールオブジェクト、規約 §2.1）と `NormalizeAddressError` だけ。型は `AddressNormalizer`・`AddressNormalizerOptions`・`AddressResult`・`AddressStyle` と、normalize-core の `CharStyle`・`CharTarget`・`WidthMode` を再公開する。関数（`applyCharStyle` など）は再公開しない
+- 公開する値は `AddressNormalizer`（モジュールオブジェクト、規約 §2.1）と `NormalizeAddressError` だけ。型は `AddressNormalizer`・`AddressNormalizerOptions`・`AddressResult`・`AddressStyle`・`AddressLevel`・`AddressPoint` と、normalize-core の `CharStyle`・`CharTarget`・`WidthMode` を再公開する。関数（`applyCharStyle` など）は再公開しない
 - `create` は options を1回だけ検査・準備する（字形の指定の検査と、`default` と項目ごとの指定のマージ）。options が検査を満たさなければ `create` が `TypeError` を投げ、`normalize` は呼ぶ前から使えない。準備したものは写しなので、`create` のあとで options を書き換えても正規化器には効かない
 - NJA の設定・取得処理の差し替え（下記「失敗の扱い」）・住所データのキャッシュはプロセスに1つで、`create` を何回呼んでもすべての正規化器で共有される。取得先（エンドポイント）などは `create` の引数に入れない
 - `create` の入力の誤り（options が object でない、`nja`・`codes` が boolean でない、字形の指定が検査を満たさない）と、`normalize` の入力の誤り（引数が文字列でない）は `TypeError`。それ以外で処理を終えられなかったものは `normalize` が `NormalizeAddressError` を投げる（下記「失敗の扱い」）
@@ -87,6 +99,8 @@ export interface AddressResult {
 | `unmatched`                                      | 前半の結果                              | 前半の結果                          | 全体の結果（手順2）                                        |
 | `building`                                       | 後半から取り出したもの（手順7）         | 後半から取り出したもの（手順7）     | `''`                                                       |
 | `nja`                                            | 全体の結果                              | 全体の結果                          | 全体の結果                                                 |
+
+どの結果から取っても、その結果で読めなかった項目は `null` にする（「公開 API」）。`codes`・`nja` はオプションが `true` のときだけ置く。
 
 手順4で前半の結果を使うのは、全体の結果が NJA の誤読を含みうるため（建物名の先頭の漢数字を番地に読む、空白を消して後ろの数字を番地につなげる）。
 
@@ -195,7 +209,9 @@ src/
 
 - この表を lint で止める。動的 `import()` も同じ
 - `NormalizeAddressError` は adapters に置く。投げるのは adapters だけで、application と domain は受け取らずにそのまま伝える。ports は型だけの層で、クラス（値）を置くと application・domain が値として import できるようになるため置かない。公開は `index.ts` が adapters から再 export する
-- ports の `ParsedAddress` の項目名は結果と同じ `block`・`unmatched` にする（同じ概念に別の名前を並べない）。NJA の `addr`・`other` から写すのは adapters だけ
+- ports の `ParsedAddress` の項目名は結果と同じ `block`・`unmatched` にする（同じ概念に別の名前を並べない）。NJA の `addr`・`other` から写すのは adapters だけ。読めなかった項目も結果と同じく `null` にし、NJA の `undefined` を `null` にそろえるのは adapters だけ
+- `AddressLevel`・`AddressPoint` は結果の型なので ports の `addressResult.ts` に置き、`ParsedAddress` はそれを使う
+- `src/` の直下に置くのは `index.ts` だけ（ほかは層のディレクトリに置く）。lint の層の検査は層のディレクトリのファイルにしか掛からないため、テストで確かめる
 - application は `createAddressNormalizer(parser, options)` で正規化器を作る。`index.ts` の `create` はこれに NJA の AddressParser を渡すだけ
 - 型の `AddressNormalizer` は ports の interface を、`index.ts` で同名の type 別名にして公開する。同名の値（モジュールオブジェクト）と並べるため。ports から `export type { AddressNormalizer }` で再 export すると値と衝突して型チェックが落ちる（TS2323）
 - テストでは、決まった結果を返す偽の `AddressParser` を注入すれば、NJA もネットワークも使わずに手順1〜8を確かめられる。取得の失敗の判定は、偽の取得関数を渡して確かめる
@@ -227,6 +243,7 @@ src/
 - ハイフンでつながった部屋番号（`3-1-211`）は、level 3 では番地と区別できない（`号室` `室` で終わり、番号が4つ以上並ぶものは建物部の始まりの位置の独自の規則で切る）
 - 建物部の始まりの位置は、abrg の規則の出力で最初の算用数字より後ろの最初の空白だけを見る。その前半が手順4の受け入れ条件を満たさなければ、手順6の探索に戻る
 - 住所データは Geolonia の API から取得する
+- 外字（Unicode の私用領域 U+E000〜U+F8FF の字）を含む入力は、NJA が町字を読めず level 1〜2 で止まることがある（試験で 278件）。元の字は外字の対応表が無いと分からないので、こちらでは直さない
 
 ## 今回やらないこと
 

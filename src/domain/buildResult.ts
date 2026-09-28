@@ -46,30 +46,24 @@ export const buildResult = (
 ): AddressResult => {
   const { styles } = options;
   const { fieldsFrom } = outcome;
-  const optional = (field: StyledField, value: string | undefined) =>
-    value === undefined ? {} : { [field]: styleField(value, styles[field]) };
+  const field = (name: StyledField, value: string | null): string | null =>
+    value === null ? null : styleField(value, styles[name]);
   return {
     input,
-    ...optional('prefecture', fieldsFrom.prefecture),
-    ...optional('city', fieldsFrom.city),
-    ...optional('town', fieldsFrom.town),
-    ...optional('block', fieldsFrom.block),
+    prefecture: field('prefecture', fieldsFrom.prefecture),
+    city: field('city', fieldsFrom.city),
+    town: field('town', fieldsFrom.town),
+    block: field('block', fieldsFrom.block),
     building: styleField(outcome.building, styles.building),
     unmatched: styleField(outcome.unmatched, styles.unmatched),
     level: fieldsFrom.level,
-    ...(fieldsFrom.point === undefined
-      ? {}
-      : { point: { ...fieldsFrom.point } }),
+    point: fieldsFrom.point === null ? null : { ...fieldsFrom.point },
     split: outcome.split,
     ...(options.codes
       ? {
           codes: {
-            ...(fieldsFrom.lgCode === undefined
-              ? {}
-              : { lgCode: fieldsFrom.lgCode }),
-            ...(fieldsFrom.machiazaId === undefined
-              ? {}
-              : { machiazaId: fieldsFrom.machiazaId }),
+            lgCode: fieldsFrom.lgCode,
+            machiazaId: fieldsFrom.machiazaId,
           },
         }
       : {}),

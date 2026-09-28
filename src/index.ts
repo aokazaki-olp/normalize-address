@@ -34,7 +34,9 @@ export const AddressNormalizer = { create };
 
 export { NormalizeAddressError } from './adapters/normalizeAddressError.ts';
 export type {
+  AddressLevel,
   AddressNormalizerOptions,
+  AddressPoint,
   AddressResult,
   AddressStyle,
 } from './ports/addressResult.ts';

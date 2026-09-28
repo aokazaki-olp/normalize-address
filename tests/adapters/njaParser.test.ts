@@ -45,15 +45,22 @@ describe('toParsedAddress', () => {
     assert.equal(toParsedAddress(result).lgCode, '131130');
   });
 
-  it('無い項目は入れない', () => {
+  it('無い項目は null にする', () => {
     const result = {
       other: '住所ではない',
       level: 0,
       metadata: { input: '住所ではない' },
     } as unknown as NormalizeResult;
     assert.deepEqual(toParsedAddress(result), {
+      prefecture: null,
+      city: null,
+      town: null,
+      block: null,
       unmatched: '住所ではない',
       level: 0,
+      point: null,
+      lgCode: null,
+      machiazaId: null,
       raw: result,
     });
   });

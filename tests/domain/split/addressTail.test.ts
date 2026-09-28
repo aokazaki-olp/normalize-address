@@ -4,12 +4,22 @@ import { describe, it } from 'node:test';
 import { wholeTail } from '../../../src/domain/split/addressTail.ts';
 import type { ParsedAddress } from '../../../src/ports/addressParser.ts';
 
-const parsed = (fields: Partial<ParsedAddress>): ParsedAddress => ({
-  unmatched: '',
-  level: 3,
-  raw: {},
-  ...fields,
-});
+const parsed = (fields: Partial<ParsedAddress>): ParsedAddress =>
+  Object.assign(
+    {
+      prefecture: null,
+      city: null,
+      town: null,
+      block: null,
+      unmatched: '',
+      level: 3,
+      point: null,
+      lgCode: null,
+      machiazaId: null,
+      raw: {},
+    } satisfies ParsedAddress,
+    fields,
+  );
 
 describe('wholeTail', () => {
   it('level 8 は block が末尾で unmatched が残り', () => {
