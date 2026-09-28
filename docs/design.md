@@ -30,7 +30,7 @@ export interface AddressResult {
   city: string | null; // NJA の city（郡＋市区町村＋政令市の区）。読めなければ null
   town: string | null; // NJA の town（町字：大字・丁目・小字）。読めなければ null
   block: string | null; // NJA の addr（番地等：街区符号-住居番号、または地番）。読めなければ null
-  building: string; // 建物部。無ければ ''
+  building: string; // 建物部。切り出さなかったときは ''（split を見る）
   unmatched: string; // データで確かめられなかった住所の残り（NJA の other にあたる）。無ければ ''
   level: AddressLevel; // NJA の level
   point: AddressPoint | null; // 位置情報。無ければ null
@@ -50,14 +50,17 @@ export interface AddressPoint {
 
 - 読めなかった項目（`prefecture`〜`block`・`point`・`codes` の `lgCode`・`machiazaId`）は、省かずに `null` を置く。利用者が結果を ORM や DB にそのまま渡すため（ユーザーの決定）。たとえば Prisma では、値に `undefined` を渡すとその項目はクエリに含まれない（"if `undefined` is passed as a value, it is not included in the generated query"。Prisma ORM v7 の文書 `prisma.io/docs/orm/prisma-client/special-fields-and-types/null-and-undefined`、2026-09-28 確認）
 - `building`・`unmatched` は文字列のまま。`''` が「無い」を表す
+- `building` が `''` なのは、`split` が `'none'`（住所で終わっていて建物部が無い）のときだけではない。`'skipped'`（level 3 未満で切れ目を探さない）・`'unresolved'`（町字まで読めたが切れ目を決められなかった）のときも `''` で、建物部は `unmatched` に残る。利用者は `building` の `''` だけで「建物が無い」と判断せず `split` を見る。`split` の4つの値の意味と、そのときの `building`・`unmatched` は公開の型の TSDoc（`SplitStatus`）にも書く
+- `split` が `'found'` で手順4（建物部の始まりの位置）で切ったときは、住所の項目・`level`・`point`・`codes` を前半の解析の結果から取り、`nja` は常に全体（テキスト）の解析の結果なので、`level` と `nja` の中の `level`、`block` と `nja` の中の `addr` が違うことがある（下の「出力の表」）
 - `codes`・`nja` は、オプションが `true` のときだけ置く（`false` や省略のときは項目そのものが無い）
 
 - 名前は NJA の分け方に合わせ、`pref` は正式な語 `prefecture` にする。`city`・`town` の中身は NJA の定義のまま
-- `block` は NJA の `addr`。日本郵便の郵便番号・デジタルアドレス API の `block_name`（説明は「番地等文字列」、英語の説明は "block name"。API 仕様書 1.1.0.260723、2026-09-28 確認）に名前を合わせた。住居表示の地域では「街区符号-住居番号」（例 `21-3`）、地番の地域では地番（例 `3060-1`）。地番の地域では、道路で囲まれた街区ではなく一筆の土地を指す。OSM の `addr:block_number` とは指すものが違う（英語版 wiki は道路で囲まれた区域の番号、日本語版 wiki は「街区符号または番地」で、住居番号・枝番号は `addr:housenumber` に分ける。2026-09-28 確認）
+- `block` は NJA の `addr`。日本郵便の郵便番号・デジタルアドレス API の `block_name`（説明は「番地等文字列」、英語の説明は "block name"。API 仕様書 1.1.0.260723、2026-09-28 確認）に名前を合わせた。住居表示の地域では「街区符号-住居番号」（例 `21-3`）、地番の地域では地番（例 `3060-1`）。これは例で、住居番号だけのもの、住居番号2を含む3つ組、支号を含む地番（最大3つ組）もある（JAv2 の型で街区符号と住居番号2、地番2・地番3が省略できる）。地番の地域では、道路で囲まれた街区ではなく一筆の土地を指す。OSM の `addr:block_number` とは指すものが違う（英語版 wiki は道路で囲まれた区域の番号、日本語版 wiki は「街区符号または番地」で、住居番号・枝番号は `addr:housenumber` に分ける。2026-09-28 確認）
 - `unmatched` は、データで確かめられなかった住所の残り。中身は NJA の `other`（NJA 3.1.3 の README の説明は「正規化できなかった文字列」）と同じ種類のものだが、建物部は `building` に切り出してある。`split` が `'unresolved'` のときは、建物部を含む残り全部が入る。名前は abr-geocoder 3.x の `unmatched_address`（3.0.51 で確認。照合できなかった部分。型は文字列の配列）と同じ語にした。日本郵便の API の `other_name`（説明は「その他住所文字列」、英語の説明は "Building number, room number, and other details"）と紛れないように `other` を使わない
 - `nja` の中の `addr`・`other` は NJA の名前のまま（NJA の結果そのものなので変えない）
 - 字形は、ガード付き NFKC（`@arihirookazaki/normalize-core`）をかけた後の文字列。`prefecture`〜`block` は NJA が返すマスターの表記
-- `codes.lgCode` は全国地方公共団体コード（6桁の文字列）。JAv2 の市区町村コードは数値で先頭のゼロが落ちているので、6桁にそろえる（札幌市中央区 `11011` → `011011`）。`codes.machiazaId` は町字 ID（7桁の文字列）
+- 公開の型の TSDoc（`AddressStyle`）にも、`fields` の `false` でもガード付き NFKC はかかること（字形の指定だけを当てない）と、既定は ASCII の95字を半角にすることを書く（下記「字形の指定」）
+- `codes.lgCode` は市区町村の全国地方公共団体コード（6桁の文字列）で、市区町村まで読めなければ `null`（都道府県のコードは入らない）。JAv2 の市区町村コードは数値で先頭のゼロが落ちているので、6桁にそろえる（札幌市中央区 `11011` → `011011`）。`codes.machiazaId` は町字 ID（7桁の文字列）
 - `nja` は NJA の結果の写し（`structuredClone`）を入れる。NJA の結果の中には NJA のキャッシュのオブジェクト（`metadata.city` など）があり、そのまま渡すと利用者の書き換えが同じプロセスの以後の結果に波及するため
 - `nja` の型は `Readonly<Record<string, unknown>>` のままにする。NJA の版によって形が変わりうるので、スキーマを型に固定しない（規約 §2.7 の「スキーマが本当に存在しない場合は `unknown` のまま」）
 - 公開する値は `AddressNormalizer`（モジュールオブジェクト、規約 §2.1）と `NormalizeAddressError` だけ。型は `AddressNormalizer`・`AddressNormalizerOptions`・`AddressResult`・`AddressStyle`・`AddressLevel`・`AddressPoint` と、normalize-core の `CharStyle`・`CharTarget`・`WidthMode` を再公開する。関数（`applyCharStyle` など）は再公開しない
