@@ -18,13 +18,13 @@ export type AddressType = 'rsdtdsp' | 'parcel' | 'undetermined' | 'unknown';
 
 /** normalizeBasicNormalized の結果 */
 export interface FormattedAddress {
-  text: TrackedText;
-  addressType: AddressType;
+  readonly text: TrackedText;
+  readonly addressType: AddressType;
 }
 
 interface ReplaceRule {
-  pattern: RegExp;
-  template: string;
+  readonly pattern: RegExp;
+  readonly template: string;
 }
 
 // Go の unicode.IsSpace と同じ集合

@@ -15,18 +15,24 @@ import {
 import { toBuilding } from '../domain/split/building.ts';
 import { buildingStarts } from '../domain/split/buildingStart.ts';
 import { splitCandidates } from '../domain/split/candidates.ts';
-import type { SplitOutcome } from '../domain/split/outcome.ts';
+import {
+  foundAtBuildingStart,
+  foundAtCandidate,
+  unsplit,
+  type FoundOutcome,
+  type SplitOutcome,
+} from '../domain/split/outcome.ts';
 import type { AddressParser, ParsedAddress } from '../ports/addressParser.ts';
 import type {
   AddressNormalizer,
   AddressNormalizerOptions,
 } from '../ports/addressResult.ts';
 
-const findBuildingStart = async (
+const findAtBuildingStart = async (
   parser: AddressParser,
   text: string,
   context: WholeContext,
-): Promise<SplitOutcome | undefined> => {
+): Promise<FoundOutcome | undefined> => {
   for (const start of buildingStarts(text)) {
     const after = text.slice(start);
     const building = toBuilding(after);
@@ -35,12 +41,24 @@ const findBuildingStart = async (
     }
     const front = await parser.parse(text.slice(0, start));
     if (isAddressFront(context, front, { after, building })) {
-      return {
-        split: 'found',
-        address: front,
-        unmatched: front.unmatched,
-        building,
-      };
+      return foundAtBuildingStart(front, building);
+    }
+  }
+  return undefined;
+};
+
+const findAtCandidate = async (
+  parser: AddressParser,
+  text: string,
+  context: WholeContext,
+): Promise<SplitOutcome | undefined> => {
+  for (const position of splitCandidates(text)) {
+    const front = await parser.parse(text.slice(0, position));
+    if (isSameAddress(context, front)) {
+      const building = toBuilding(text.slice(position));
+      return building === ''
+        ? unsplit(context.whole, 'none')
+        : foundAtCandidate(context.whole, front, building);
     }
   }
   return undefined;
@@ -51,38 +69,19 @@ const findSplit = async (
   text: string,
   whole: ParsedAddress,
 ): Promise<SplitOutcome> => {
-  const unsplit = (split: SplitOutcome['split']): SplitOutcome => ({
-    split,
-    address: whole,
-    unmatched: whole.unmatched,
-    building: '',
-  });
   if (whole.level < 3) {
-    return unsplit('skipped');
+    return unsplit(whole, 'skipped');
   }
   const context = wholeContext(whole);
-  const byStart = await findBuildingStart(parser, text, context);
-  if (byStart !== undefined) {
-    return byStart;
+  const atBuildingStart = await findAtBuildingStart(parser, text, context);
+  if (atBuildingStart !== undefined) {
+    return atBuildingStart;
   }
   if (context.rest === '') {
-    return unsplit('none');
+    return unsplit(whole, 'none');
   }
-  for (const position of splitCandidates(text)) {
-    const front = await parser.parse(text.slice(0, position));
-    if (isSameAddress(context, front)) {
-      const building = toBuilding(text.slice(position));
-      return building === ''
-        ? unsplit('none')
-        : {
-            split: 'found',
-            address: whole,
-            unmatched: front.unmatched,
-            building,
-          };
-    }
-  }
-  return unsplit('unresolved');
+  const atCandidate = await findAtCandidate(parser, text, context);
+  return atCandidate ?? unsplit(whole, 'unresolved');
 };
 
 /**

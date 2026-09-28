@@ -34,7 +34,7 @@ export const styleField = (
 /**
  * 出力を組み立てる
  *
- * 住所の項目・level・point・codes は切れ目の探索の結果が指す解析の結果から、unmatched と building は切れ目の探索の結果から、
+ * 住所の項目・level・point・codes は切れ目の探索の結果の fieldsFrom から、unmatched と building は切れ目の探索の結果から、
  * nja は全体の結果から取る。
  *
  * @param input - 渡された文字列
@@ -50,27 +50,31 @@ export const buildResult = (
   options: PreparedOptions,
 ): AddressResult => {
   const { styles } = options;
-  const { address } = outcome;
+  const { fieldsFrom } = outcome;
   const optional = (field: StyledField, value: string | undefined) =>
     value === undefined ? {} : { [field]: styleField(value, styles[field]) };
   return {
     input,
-    ...optional('prefecture', address.prefecture),
-    ...optional('city', address.city),
-    ...optional('town', address.town),
-    ...optional('block', address.block),
+    ...optional('prefecture', fieldsFrom.prefecture),
+    ...optional('city', fieldsFrom.city),
+    ...optional('town', fieldsFrom.town),
+    ...optional('block', fieldsFrom.block),
     building: styleField(outcome.building, styles.building),
     unmatched: styleField(outcome.unmatched, styles.unmatched),
-    level: address.level,
-    ...(address.point === undefined ? {} : { point: { ...address.point } }),
+    level: fieldsFrom.level,
+    ...(fieldsFrom.point === undefined
+      ? {}
+      : { point: { ...fieldsFrom.point } }),
     split: outcome.split,
     ...(options.codes
       ? {
           codes: {
-            ...(address.lgCode === undefined ? {} : { lgCode: address.lgCode }),
-            ...(address.machiazaId === undefined
+            ...(fieldsFrom.lgCode === undefined
               ? {}
-              : { machiazaId: address.machiazaId }),
+              : { lgCode: fieldsFrom.lgCode }),
+            ...(fieldsFrom.machiazaId === undefined
+              ? {}
+              : { machiazaId: fieldsFrom.machiazaId }),
           },
         }
       : {}),

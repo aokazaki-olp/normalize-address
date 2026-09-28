@@ -27,9 +27,9 @@ const STYLED_FIELDS = [
 /** 検査とマージを済ませたオプション */
 export interface PreparedOptions {
   /** 項目ごとに当てる字形の指定。undefined なら当てない（ガード付き NFKC だけ） */
-  styles: Readonly<Record<StyledField, CharStyle | undefined>>;
-  nja: boolean;
-  codes: boolean;
+  readonly styles: Readonly<Record<StyledField, CharStyle | undefined>>;
+  readonly nja: boolean;
+  readonly codes: boolean;
 }
 
 const isObject = (value: unknown): value is object =>

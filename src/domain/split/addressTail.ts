@@ -9,8 +9,8 @@ import { LEADING_NUMBER, LEADING_SUFFIX, TRAILING_SUFFIX } from './rules.ts';
 
 /** 住所の末尾と、その後ろに残ったテキスト */
 export interface AddressTail {
-  tail: string;
-  rest: string;
+  readonly tail: string;
+  readonly rest: string;
 }
 
 /**
@@ -46,7 +46,7 @@ export const frontTail = (front: ParsedAddress): string =>
 
 /** 全体の結果と、そこから1回だけ導く住所の末尾と残り */
 export interface WholeContext extends AddressTail {
-  whole: ParsedAddress;
+  readonly whole: ParsedAddress;
 }
 
 /**

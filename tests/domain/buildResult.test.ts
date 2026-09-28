@@ -30,12 +30,12 @@ describe('styleField', () => {
 describe('buildResult', () => {
   const outcome = {
     split: 'found',
-    address: WHOLE,
+    fieldsFrom: WHOLE,
     unmatched: '',
     building: 'ビル１Ｆ',
   } as const;
 
-  it('住所の項目は outcome.address、unmatched と building は切れ目の探索の結果から取る', () => {
+  it('住所の項目は outcome.fieldsFrom、unmatched と building は切れ目の探索の結果から取る', () => {
     assert.deepEqual(
       buildResult('入力', WHOLE, outcome, prepareOptions(undefined)),
       {
@@ -57,7 +57,7 @@ describe('buildResult', () => {
     const result = buildResult(
       'x',
       whole,
-      { split: 'skipped', address: whole, unmatched: 'x', building: '' },
+      { split: 'skipped', fieldsFrom: whole, unmatched: 'x', building: '' },
       prepareOptions(undefined),
     );
     assert.deepEqual(result, {
@@ -96,7 +96,7 @@ describe('buildResult', () => {
     const result = buildResult(
       'x',
       whole,
-      { split: 'skipped', address: whole, unmatched: '', building: '' },
+      { split: 'skipped', fieldsFrom: whole, unmatched: '', building: '' },
       prepareOptions({ codes: true }),
     );
     assert.deepEqual(result.codes, {});
@@ -114,7 +114,7 @@ describe('buildResult', () => {
     const result = buildResult(
       '入力',
       WHOLE,
-      { ...outcome, address: front, unmatched: '9' },
+      { ...outcome, fieldsFrom: front, unmatched: '9' },
       prepareOptions({ codes: true, nja: true }),
     );
     assert.equal(result.block, '1-2');

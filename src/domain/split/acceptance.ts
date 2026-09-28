@@ -23,8 +23,8 @@ import {
 
 /** 建物部の始まりの位置から後ろのテキストと、そこから取り出した建物部 */
 export interface BuildingSide {
-  after: string;
-  building: string;
+  readonly after: string;
+  readonly building: string;
 }
 
 /**
