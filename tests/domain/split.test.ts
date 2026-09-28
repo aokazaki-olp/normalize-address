@@ -332,13 +332,24 @@ describe('isAddressFront', () => {
     level: 8,
   });
   const noTail = parsed({ ...area, unmatched: '字北ノ作305-5クレオビル2F' });
-  const cases: [
+  type FrontCase = [
     string,
     ParsedAddress,
     Partial<ParsedAddress>,
     string,
     boolean,
-  ][] = [
+  ];
+  const describeFrontCases = (title: string, cases: FrontCase[]): void => {
+    describe(title, () => {
+      for (const [name, whole, front, after, expected] of cases) {
+        it(name, () => {
+          assert.equal(isAddressFront(whole, parsed(front), after), expected);
+        });
+      }
+    });
+  };
+
+  describeFrontCases('地域・level・前半の住所の末尾', [
     [
       '地域が一致し末尾がある（level 3）',
       level3,
@@ -369,17 +380,13 @@ describe('isAddressFront', () => {
       'ビル',
       false,
     ],
+  ]);
+
+  describeFrontCases('前半が住所として読み切れている（全体の末尾がある）', [
     [
       'P1：unmatched に建物名が残る',
       level3,
       { ...area, unmatched: '10 AKASAKA' },
-      'HILLS',
-      false,
-    ],
-    [
-      'P1：level 8 の前半の unmatched は空でなければならない',
-      level3,
-      { ...area, block: '10', unmatched: 'AKASAKA', level: 8 },
       'HILLS',
       false,
     ],
@@ -404,6 +411,31 @@ describe('isAddressFront', () => {
       'ビル',
       true,
     ],
+    [
+      'P1：数字の間の 区',
+      level3,
+      { ...area, unmatched: '2区300-2' },
+      'ビル',
+      true,
+    ],
+    ['P1：末尾の番先', level3, { ...area, unmatched: '1番先' }, 'ビル', true],
+    [
+      'P1：level 8 の前半の unmatched が接尾語だけ',
+      level3,
+      { ...area, block: '6', unmatched: '番先', level: 8 },
+      '6街区',
+      true,
+    ],
+    [
+      'P1：level 8 の前半の unmatched が空でも接尾語だけでもない',
+      level3,
+      { ...area, block: '10', unmatched: 'AKASAKA', level: 8 },
+      'HILLS',
+      false,
+    ],
+  ]);
+
+  describeFrontCases('前半が住所として読み切れている（全体の末尾が空）', [
     [
       'P1：全体の末尾が空なら、全体の unmatched の先頭と一致し数字で終わる',
       noTail,
@@ -432,6 +464,9 @@ describe('isAddressFront', () => {
       'ビル2F',
       false,
     ],
+  ]);
+
+  describeFrontCases('建物部が住所の続きで始まらない', [
     [
       'P2：建物部が 地＋数字 で始まる',
       level3,
@@ -447,10 +482,10 @@ describe('isAddressFront', () => {
       false,
     ],
     [
-      'P2：建物部が ー＋数字 で始まる',
+      'P2：建物部が 番先＋数字 で始まる',
       level3,
-      { ...area, unmatched: '1646' },
-      'ー1',
+      { ...area, unmatched: '6' },
+      '番先6街区',
       false,
     ],
     [
@@ -466,65 +501,6 @@ describe('isAddressFront', () => {
       { ...area, unmatched: '10' },
       '-202号室',
       true,
-    ],
-    [
-      'P3：全体が level 8 で前半が level 3 なら受け入れない',
-      level8,
-      { ...area, unmatched: '10' },
-      '3FUNDES',
-      false,
-    ],
-    [
-      'P3：建物部が漢数字で始まれば受け入れる',
-      level8,
-      { ...area, unmatched: '10' },
-      '三信ビル',
-      true,
-    ],
-    [
-      'P3：空白で始まれば受け入れる',
-      level8,
-      { ...area, unmatched: '10' },
-      ' 2階',
-      true,
-    ],
-    [
-      'P3：空白で始まっても、先頭の数字が全体の番地の続きなら受け入れない',
-      level8,
-      { ...area, unmatched: '10' },
-      ' 3号棟',
-      false,
-    ],
-    [
-      'P3：前半も level 8 なら受け入れる',
-      level8,
-      { ...area, block: '10', level: 8 },
-      '3階',
-      true,
-    ],
-  ];
-  cases.push(
-    [
-      'P1：数字の間の 区',
-      level3,
-      { ...area, unmatched: '2区300-2' },
-      'ビル',
-      true,
-    ],
-    ['P1：末尾の番先', level3, { ...area, unmatched: '1番先' }, 'ビル', true],
-    [
-      'P1：level 8 の前半の unmatched が接尾語だけ',
-      level3,
-      { ...area, block: '6', unmatched: '番先', level: 8 },
-      '6街区',
-      true,
-    ],
-    [
-      'P2：建物部が 番先＋数字 で始まる',
-      level3,
-      { ...area, unmatched: '6' },
-      '番先6街区',
-      false,
     ],
     [
       'P2：横棒の後ろの数字だけは枝番',
@@ -553,6 +529,44 @@ describe('isAddressFront', () => {
       { ...area, unmatched: '15-7' },
       '-1階B',
       true,
+    ],
+  ]);
+
+  describeFrontCases('データで確定した番地を上書きしない', [
+    [
+      'P3：全体が level 8 で前半が level 3 なら受け入れない',
+      level8,
+      { ...area, unmatched: '10' },
+      '3FUNDES',
+      false,
+    ],
+    [
+      'P3：前半も level 8 なら受け入れる',
+      level8,
+      { ...area, block: '10', level: 8 },
+      '3階',
+      true,
+    ],
+    [
+      'P3：建物部が漢数字で始まれば受け入れる',
+      level8,
+      { ...area, unmatched: '10' },
+      '三信ビル',
+      true,
+    ],
+    [
+      'P3：空白で始まれば受け入れる',
+      level8,
+      { ...area, unmatched: '10' },
+      ' 2階',
+      true,
+    ],
+    [
+      'P3：空白で始まっても、先頭の数字が全体の番地の続きなら受け入れない',
+      level8,
+      { ...area, unmatched: '10' },
+      ' 3号棟',
+      false,
     ],
     [
       'P3：空白の無い階の形は受け入れない（前半が level 8 未満）',
@@ -596,10 +610,5 @@ describe('isAddressFront', () => {
       ' 3F(77号室)',
       true,
     ],
-  );
-  for (const [name, whole, front, after, expected] of cases) {
-    it(name, () => {
-      assert.equal(isAddressFront(whole, parsed(front), after), expected);
-    });
-  }
+  ]);
 });
