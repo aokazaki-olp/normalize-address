@@ -92,7 +92,9 @@ export interface AddressResult {
   building: string;
   /**
    * データで確かめられなかった住所の残り（NJA の other にあたる）。無ければ ''。
-   * split が 'found' なら建物部は building に切り出してある。'skipped'・'unresolved' のときは、建物部を含む残り全部
+   * split が 'found' なら建物部は building に切り出してある。'skipped'・'unresolved' のときは、建物部を含む残り全部。
+   * NJA の other をもとにしているので NJA の変換がかかっており（数字と隣り合う横棒や長音は -、漢数字は算用数字など）、入力の字のままではない。
+   * 建物名を入力の字で読みたいときは building を見る
    */
   unmatched: string;
   /** NJA の level（split が 'found' のときの取り方は AddressResult の説明を参照） */
