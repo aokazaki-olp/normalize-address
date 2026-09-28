@@ -52,6 +52,7 @@ export interface AddressPoint {
 - `building`・`unmatched` は文字列のまま。`''` が「無い」を表す
 - `building` が `''` なのは、`split` が `'none'`（住所で終わっていて建物部が無い）のときだけではない。`'skipped'`（level 3 未満で切れ目を探さない）・`'unresolved'`（町字まで読めたが切れ目を決められなかった）のときも `''` で、建物部は `unmatched` に残る。利用者は `building` の `''` だけで「建物が無い」と判断せず `split` を見る。`split` の4つの値の意味と、そのときの `building`・`unmatched` は公開の型の TSDoc（`SplitStatus`）にも書く
 - `split` が `'found'` で手順4（建物部の始まりの位置）で切ったときは、住所の項目・`level`・`point`・`codes` を前半の解析の結果から取り、`nja` は常に全体（テキスト）の解析の結果なので、`level` と `nja` の中の `level`、`block` と `nja` の中の `addr` が違うことがある（下の「出力の表」）
+- `point.level` は NJA の型のまま `number` にする（結果の `level` の `AddressLevel` のように値を絞らない）
 - `codes`・`nja` は、オプションが `true` のときだけ置く（`false` や省略のときは項目そのものが無い）
 
 - 名前は NJA の分け方に合わせ、`pref` は正式な語 `prefecture` にする。`city`・`town` の中身は NJA の定義のまま
@@ -223,6 +224,9 @@ src/
 - `AddressLevel`・`AddressPoint` は結果の型なので ports の `addressResult.ts` に置き、`ParsedAddress` はそれを使う
 - `src/` の直下に置くのは `index.ts` だけ（ほかは層のディレクトリに置く）。lint の層の検査は層のディレクトリのファイルにしか掛からないため、テストで確かめる
 - application は `createAddressNormalizer(parser, options)` で正規化器を作る。`index.ts` の `create` はこれに NJA の AddressParser を渡すだけ
+- `index.ts` は依存を組み立てる唯一の場所なので、解析器の生成と `create` の定義（2行）を置く（規約 §2.5「`index.ts` に内部実装を並べない」の例外）
+- ports の `AddressParser` には、投げる例外の取り決めを書かない。非公開の内部の依存で、例外の分類は adapters の境界（`njaParser.ts`）で行うため
+- 表で `application`・`domain` に `@arihirookazaki/normalize-core` の import を許すのは、normalize-core が系列の共通基盤で I/O を持たず、AGENTS.md の「外部ライブラリと I/O」に当たらないため（作業場所の `docs/design.md` の決定「`normalize-core` は I/O を持たないので、`domain` から import してよい」）
 - 型の `AddressNormalizer` は ports の interface を、`index.ts` で同名の type 別名にして公開する。同名の値（モジュールオブジェクト）と並べるため。ports から `export type { AddressNormalizer }` で再 export すると値と衝突して型チェックが落ちる（TS2323）
 - テストでは、決まった結果を返す偽の `AddressParser` を注入すれば、NJA もネットワークも使わずに手順1〜8を確かめられる。取得の失敗の判定は、偽の取得関数を渡して確かめる
 
@@ -254,6 +258,9 @@ src/
 - 建物部の始まりの位置は、abrg の規則の出力で最初の算用数字より後ろの最初の空白だけを見る。その前半が手順4の受け入れ条件を満たさなければ、手順6の探索に戻る
 - 住所データは Geolonia の API から取得する
 - 外字（Unicode の私用領域 U+E000〜U+F8FF の字）を含む入力は、NJA が町字を読めず level 1〜2 で止まることがある（試験で 278件）。元の字は外字の対応表が無いと分からないので、こちらでは直さない
+- NJA の設定（`config`）や `requestHandlers` を利用者が直接書き換えることは想定しない。書き換えると取得の失敗の検査が外れうる（差し替えは最初の解析の前に1回だけ行う）
+- NJA の状態（設定・取得処理の差し替え・住所データのキャッシュ）はモジュールの読み込み単位で、worker_threads の worker ごとに別
+- `normalize` は `AbortSignal` を受け取らず、呼び出しを途中で打ち切れない。NJA 3.1.3 の `normalize` に signal を渡す API が無いため（オプションは `level` と `geoloniaApiKey` だけ。規約 §5.3 の例外）
 
 ## 今回やらないこと
 
