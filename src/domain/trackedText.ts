@@ -93,13 +93,14 @@ const expandTemplate = (
 /**
  * 正規表現に当たる部分をすべて置き換える
  *
- * テンプレートの $1〜$9 はグループに当たった部分（当たらなかったグループは空）で、元の位置を保つ。
- * それ以外の字は挿入した字として扱う。
+ * テンプレートの $0〜$9 は当たった部分（$0 は一致全体、当たらなかったグループと無いグループは空）で、元の位置を保つ。
+ * それ以外の字は、`${1}`・`$&` も含めて、挿入した字として扱う。`$$` もエスケープではない（`$$1` は `$` とグループ1になる）。
  *
  * @param tracked - 対象
  * @param pattern - g と d のフラグを持つ正規表現
  * @param template - 置き換えるテンプレート
  * @returns 置き換えた TrackedText
+ * @throws {TypeError} pattern に g のフラグが無い場合、または d のフラグが無く当たった場合
  */
 export const replaceTracked = (
   tracked: TrackedText,
