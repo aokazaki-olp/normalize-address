@@ -444,6 +444,40 @@ export const NJA_RECORDED_CASES: readonly NjaRecordedCase[] = [
     expected: { level: 3, unmatched: '2-107-716', building: '', split: 'none' },
   },
   {
+    name: '番地の途中に番・の が残り建物名が続くとき、枝番を住所側に残す',
+    input: '神奈川県横浜市神奈川区反町三丁目17番の2Aビル',
+    results: {
+      神奈川県横浜市神奈川区反町三丁目17番の2Aビル: {
+        ...TANMACHI,
+        unmatched: '17番の2Aビル',
+        level: 3,
+      },
+      神奈川県横浜市神奈川区反町三: {
+        prefecture: '神奈川県',
+        city: '横浜市神奈川区',
+        town: '反町',
+        unmatched: '3',
+        level: 3,
+      },
+      神奈川県横浜市神奈川区反町三丁目17番: {
+        ...TANMACHI,
+        unmatched: '17',
+        level: 3,
+      },
+      神奈川県横浜市神奈川区反町三丁目17番の2: {
+        ...TANMACHI,
+        unmatched: '17番の2',
+        level: 3,
+      },
+    },
+    expected: {
+      level: 3,
+      unmatched: '17番の2',
+      building: 'Aビル',
+      split: 'found',
+    },
+  },
+  {
     name: '番地の間に番・の が残る unmatched（level 3）は読み切れている',
     input:
       '神奈川県横浜市神奈川区反町三丁目17番の2 神奈川県社会福祉センター2階',

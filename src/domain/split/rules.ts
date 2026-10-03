@@ -27,6 +27,10 @@ const NUMBER_SEPARATORS = [
   '街区',
   '区',
 ] as const;
+// 号の直後の数字は階・部屋の番号のことが多いため、住所の末尾の区切りには号を入れない
+const TAIL_SEPARATORS = NUMBER_SEPARATORS.filter(
+  (separator) => separator !== '号',
+);
 const ROOM_SUFFIXES = ['号室', '室'] as const;
 // NJA 3.1.3 の正規表現が対象にする漢数字（docs/nja-3.1.3-char-rules.md）
 const KANJI_NUMERALS = '〇一二三四五六七八九十百千';
@@ -38,7 +42,6 @@ const NUMBER_CONTINUATION = '号番地';
 
 const DIGIT = '[0-9]';
 const DIGITS = '[0-9]+';
-const HYPHENATED_NUMBER = `${DIGITS}(?:-${DIGITS})*`;
 const group = (items: readonly string[]): string => `(?:${items.join('|')})`;
 const SUFFIX = group(ADDRESS_SUFFIXES);
 const ROOM_SUFFIX = group(ROOM_SUFFIXES);
@@ -51,7 +54,11 @@ export const BEFORE_NON_NUMBER = new RegExp(
   'u',
 );
 export const NUMBER_PART = new RegExp(`^[0-9${NUMBER_CONTINUATION}]$`, 'u');
-export const LEADING_NUMBER = new RegExp(`^${HYPHENATED_NUMBER}`, 'u');
+export const LEADING_TAIL_NUMBER = new RegExp(
+  `^${DIGITS}(?:${group(TAIL_SEPARATORS)}${DIGITS})*`,
+  'u',
+);
+export const NON_DIGITS = /[^0-9]+/gu;
 export const LEADING_SUFFIX = new RegExp(`^${SUFFIX}`, 'u');
 export const TRAILING_SUFFIX = new RegExp(`${SUFFIX}$`, 'u');
 export const LEADING_BARS = new RegExp(`^[${HORIZONTAL_BARS}]+`, 'u');

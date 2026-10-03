@@ -5,7 +5,18 @@
  */
 
 import type { ParsedAddress } from '../../ports/addressParser.ts';
-import { LEADING_NUMBER, LEADING_SUFFIX, TRAILING_SUFFIX } from './rules.ts';
+import {
+  LEADING_SUFFIX,
+  LEADING_TAIL_NUMBER,
+  NON_DIGITS,
+  TRAILING_SUFFIX,
+} from './rules.ts';
+
+const leadingTailNumber = (text: string): string =>
+  LEADING_TAIL_NUMBER.exec(text)?.[0] ?? '';
+
+const hyphenate = (numberPart: string): string =>
+  numberPart.replace(NON_DIGITS, '-');
 
 /** 住所の末尾と、その後ろに残ったテキスト */
 export interface AddressTail {
@@ -20,12 +31,12 @@ export interface AddressTail {
  * @returns 住所の末尾と残り
  */
 export const wholeTail = (whole: ParsedAddress): AddressTail => {
-  const tail =
-    whole.level === 8
-      ? (whole.block ?? '')
-      : (LEADING_NUMBER.exec(whole.unmatched)?.[0] ?? '');
+  const numberPart = leadingTailNumber(whole.unmatched);
+  const tail = whole.level === 8 ? (whole.block ?? '') : hyphenate(numberPart);
   const afterTail =
-    whole.level === 8 ? whole.unmatched : whole.unmatched.slice(tail.length);
+    whole.level === 8
+      ? whole.unmatched
+      : whole.unmatched.slice(numberPart.length);
   const rest = tail === '' ? afterTail : afterTail.replace(LEADING_SUFFIX, '');
   return { tail, rest };
 };
@@ -36,10 +47,16 @@ export const wholeTail = (whole: ParsedAddress): AddressTail => {
  * @param front - 前半の解析の結果
  * @returns 前半の住所の末尾
  */
-export const frontTail = (front: ParsedAddress): string =>
-  [front.block ?? '', front.unmatched.replace(TRAILING_SUFFIX, '')]
+export const frontTail = (front: ParsedAddress): string => {
+  const unmatched = front.unmatched.replace(TRAILING_SUFFIX, '');
+  const numberPart = leadingTailNumber(unmatched);
+  return [
+    front.block ?? '',
+    hyphenate(numberPart) + unmatched.slice(numberPart.length),
+  ]
     .filter((part) => part !== '')
     .join('-');
+};
 
 /** 全体の結果と、そこから1回だけ導く住所の末尾と残り */
 export interface WholeContext extends AddressTail {

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { wholeTail } from '../../../src/domain/split/addressTail.ts';
+import { frontTail, wholeTail } from '../../../src/domain/split/addressTail.ts';
 import type { ParsedAddress } from '../../../src/ports/addressParser.ts';
 
 const parsed = (fields: Partial<ParsedAddress>): ParsedAddress =>
@@ -66,6 +66,22 @@ describe('wholeTail', () => {
       rest: 'ビル',
     });
   });
+  it('level 3 で NJA が残した番地の形は、区切りを - にそろえて枝番まで末尾にする', () => {
+    assert.deepEqual(wholeTail(parsed({ unmatched: '43ノ2' })), {
+      tail: '43-2',
+      rest: '',
+    });
+    assert.deepEqual(
+      wholeTail(parsed({ unmatched: '25番-5-1バティマE3階 301号室' })),
+      { tail: '25-5-1', rest: 'バティマE3階 301号室' },
+    );
+  });
+  it('level 3 で号の後ろの数字は末尾に入れない', () => {
+    assert.deepEqual(wholeTail(parsed({ unmatched: '103号2F E1区画' })), {
+      tail: '103',
+      rest: '2F E1区画',
+    });
+  });
   it('level 3 で番地らしい部分の直後の号は残りから除く', () => {
     assert.deepEqual(wholeTail(parsed({ unmatched: '5-15-2号' })), {
       tail: '5-15-2',
@@ -93,5 +109,21 @@ describe('wholeTail', () => {
       tail: '1-2',
       rest: '-',
     });
+  });
+});
+
+describe('frontTail', () => {
+  it('前半の unmatched の番地の形は、区切りを - にそろえる', () => {
+    assert.equal(frontTail(parsed({ unmatched: '17番の2' })), '17-2');
+  });
+  it('block と、末尾の接尾語を落とした unmatched をつなぐ', () => {
+    assert.equal(
+      frontTail(parsed({ block: '6', unmatched: '番先', level: 8 })),
+      '6',
+    );
+    assert.equal(frontTail(parsed({ unmatched: '28-9号' })), '28-9');
+  });
+  it('号の後ろの数字はそろえない', () => {
+    assert.equal(frontTail(parsed({ unmatched: '16号7' })), '16号7');
   });
 });

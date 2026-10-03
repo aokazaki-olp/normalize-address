@@ -441,6 +441,13 @@ describe('isAddressFront', () => {
       false,
     ],
     [
+      '番地の保持：前半の番地の区切りをそろえて、全体の番地の続きを見分ける',
+      parsed({ ...area, block: '17-2-5', level: 8 }),
+      { ...area, unmatched: '17番の2' },
+      ' 5号棟',
+      false,
+    ],
+    [
       '番地の保持：空白の無い階の形は受け入れない（前半が level 8 未満）',
       level8,
       { ...area, unmatched: '10' },
