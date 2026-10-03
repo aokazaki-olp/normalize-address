@@ -315,9 +315,9 @@ describe('createAddressNormalizer', () => {
   it('input が文字列でなければ TypeError で、解析しない', async () => {
     const parser = createFakeParser({});
     const normalizer = createAddressNormalizer(parser);
-    const inputs: unknown[] = [undefined, null, 1, {}];
+    const inputs: any[] = [undefined, null, 1, {}];
     for (const input of inputs) {
-      await assert.rejects(normalizer.normalize(input as string), TypeError);
+      await assert.rejects(normalizer.normalize(input), TypeError);
     }
     assert.equal(parser.calls.length, 0);
   });
@@ -489,14 +489,28 @@ describe('createAddressNormalizer', () => {
 });
 
 describe('createAddressNormalizer（偽の parser が NJA 3.1.3 の実際の値を返す例）', () => {
+  const RESULT_KEYS: readonly (keyof AddressResult)[] = [
+    'input',
+    'prefecture',
+    'city',
+    'town',
+    'block',
+    'building',
+    'unmatched',
+    'level',
+    'point',
+    'split',
+    'codes',
+    'nja',
+  ];
   for (const { name, input, results, expected } of NJA_RECORDED_CASES) {
     it(name, async () => {
       const parser = createFakeParser(results);
       const result = await createAddressNormalizer(parser).normalize(input);
       const actual = Object.fromEntries(
-        Object.keys(expected).map((key) => [
+        RESULT_KEYS.filter((key) => key in expected).map((key) => [
           key,
-          result[key as keyof AddressResult],
+          result[key],
         ]),
       );
       assert.deepEqual(actual, expected);

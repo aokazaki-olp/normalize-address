@@ -71,7 +71,7 @@ describe('prepareOptions', () => {
   });
 
   describe('検査を満たさなければ TypeError', () => {
-    const invalid: [string, unknown][] = [
+    const invalid: [string, any][] = [
       ['options が null', null],
       ['options が文字列', 'codes'],
       ['options が配列', []],
@@ -113,10 +113,7 @@ describe('prepareOptions', () => {
     ];
     for (const [name, options] of invalid) {
       it(name, () => {
-        assert.throws(
-          () => prepareOptions(options as AddressNormalizerOptions),
-          TypeError,
-        );
+        assert.throws(() => prepareOptions(options), TypeError);
       });
     }
   });

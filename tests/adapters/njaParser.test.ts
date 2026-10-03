@@ -49,7 +49,7 @@ describe('toParsedAddress', () => {
     const raw = toParsedAddress(SAPPORO).raw;
     assert.notEqual(raw, SAPPORO);
     assert.deepEqual(raw, SAPPORO);
-    const metadata = raw['metadata'] as { city: { city: string } };
+    const metadata: any = raw['metadata'];
     metadata.city.city = '書き換え';
     assert.equal(
       (SAPPORO.metadata.city as unknown as { city: string }).city,

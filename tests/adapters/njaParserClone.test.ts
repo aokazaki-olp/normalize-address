@@ -58,14 +58,12 @@ describe('createNjaParser（NJA の実物と固定データ）', () => {
   it('raw を書き換えても、NJA のキャッシュと以後の結果は変わらない', async () => {
     const first = await parser.parse('東京都千代田区丸の内一丁目');
     assert.equal(first.town, '丸の内一丁目');
-    const metadata = first.raw['metadata'] as { city: { city: string } };
+    const metadata: any = first.raw['metadata'];
     metadata.city.city = '書き換え';
     const second = await parser.parse('東京都千代田区丸の内一丁目');
+    const secondMetadata: any = second.raw['metadata'];
     assert.equal(second.city, '千代田区');
-    assert.equal(
-      (second.raw['metadata'] as { city: { city: string } }).city.city,
-      '千代田区',
-    );
+    assert.equal(secondMetadata.city.city, '千代田区');
     assert.notEqual(second.raw, first.raw);
   });
 });
