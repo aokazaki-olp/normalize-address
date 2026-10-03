@@ -372,11 +372,15 @@ export const normalizeDashes = (tracked: TrackedText): TrackedText => {
     origins: tracked.origins,
   };
   for (;;) {
-    const next = replaceTracked(result, KATAKANA_DASH, '$1-$2');
-    if (next.text === result.text) {
+    let text = result.text;
+    for (const match of result.text.matchAll(KATAKANA_DASH)) {
+      const dash = match.index + (match[1] ?? '').length;
+      text = `${text.slice(0, dash)}-${text.slice(dash + 1)}`;
+    }
+    if (text === result.text) {
       return result;
     }
-    result = next;
+    result = { text, origins: result.origins };
   }
 };
 

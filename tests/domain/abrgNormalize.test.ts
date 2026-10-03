@@ -139,13 +139,16 @@ describe('元の位置の追跡', () => {
     assert.deepEqual(result.origins, [1, 2, 4]);
   });
 
-  it('normalizeDashes は長さを変えず、数字に挟まれた「ー」だけを変える', () => {
+  it('normalizeDashes は長さを変えず、数字に挟まれた「ー」だけを変え、元の位置を保つ', () => {
     const result = normalizeDashes(trackText('1ー2ー3 ータ\u2015'));
     assert.equal(result.text, '1-2-3 ータ-');
-    assert.deepEqual(
-      result.origins.filter((origin) => origin >= 0),
-      [0, 2, 4, 5, 6, 7, 8],
-    );
+    assert.deepEqual(result.origins, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
+  });
+
+  it('normalizeDashes はサロゲートペアの後ろでも「ー」の位置を取り違えない', () => {
+    const result = normalizeDashes(trackText('𠮷1ー2'));
+    assert.equal(result.text, '𠮷1-2');
+    assert.deepEqual(result.origins, [0, 1, 2, 3, 4]);
   });
 
   it('addSpacesAroundPunctuation は挿入した空白を -1 にする', () => {

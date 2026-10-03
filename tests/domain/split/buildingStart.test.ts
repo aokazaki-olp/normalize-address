@@ -5,7 +5,11 @@ import {
   buildingStarts,
   toTextStart,
 } from '../../../src/domain/split/buildingStart.ts';
-import { trackText } from '../../../src/domain/trackedText.ts';
+import {
+  concatTracked,
+  insertedText,
+  trackText,
+} from '../../../src/domain/trackedText.ts';
 
 describe('buildingStarts', () => {
   const at = (text: string, part: string): number[] => [text.indexOf(part)];
@@ -49,7 +53,11 @@ describe('buildingStarts', () => {
     ['最初の算用数字より前の空白は使わない', '東京都 千代田区 紀尾井町', []],
     ['読点の前に入る空白は数字より前', '東京都港区、六本木1-2-3', []],
     ['住所で終わる', '東京都千代田区紀尾井町1番3号', []],
-    ['挿入した字だけなら使わない', '1ー2ー3ー101号室', []],
+    [
+      '独自の規則：数字に挟まれた長音の区切りでも、元の長音の位置で返す',
+      '福岡県福岡市中央区清川2ー12ー4ー102号室',
+      at('福岡県福岡市中央区清川2ー12ー4ー102号室', 'ー102'),
+    ],
     ['空文字', '', []],
   ];
   for (const [name, text, expected] of cases) {
@@ -64,5 +72,15 @@ describe('toTextStart', () => {
     const text = `坂1 ${'ビ'.repeat(200000)}`;
     const tracked = trackText(text);
     assert.equal(toTextStart(text, tracked, tracked, 2), 2);
+  });
+  it('空白の後ろが挿入した字だけなら使わない', () => {
+    const text = '坂1ビル';
+    const prepared = trackText(text);
+    const formatted = concatTracked(
+      trackText('坂1'),
+      insertedText(' '),
+      insertedText('-'),
+    );
+    assert.equal(toTextStart(text, prepared, formatted, 2), undefined);
   });
 });
