@@ -246,7 +246,7 @@ src/
 | `building.ts`      | 後半から `building` を取り出す                                                                | 7                             |
 | `outcome.ts`       | 切れ目の探索の結果（出力の表のどの結果を使うか）                                              | 3〜8                          |
 
-`acceptance.ts` は `rules.ts`・`addressTail.ts`・`building.ts` を、`addressTail.ts`・`building.ts`・`candidates.ts`・`buildingStart.ts` は `rules.ts` を import する（`buildingStart.ts` は split/ の外の `abrgNormalize.ts`・`trackedText.ts` も）。`outcome.ts` は ports の型だけを import する。循環させない。
+`acceptance.ts` は `rules.ts`・`addressTail.ts` を、`addressTail.ts`・`building.ts`・`candidates.ts`・`buildingStart.ts` は `rules.ts` を import する（`buildingStart.ts` は split/ の外の `abrgNormalize.ts`・`trackedText.ts` も）。循環させない。
 
 ## 依存
 
