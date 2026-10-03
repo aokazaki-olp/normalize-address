@@ -82,7 +82,7 @@ export interface AddressResult {
   /**
    * 番地等（NJA の addr）。住居表示の地域では「街区符号-住居番号」（例 21-3）、地番の地域では地番（例 3060-1）。
    * これは例で、住居番号だけのもの、住居番号2を含む3つ組、支号を含む地番（最大3つ組）もある。
-   * 地番の地域では、道路で囲まれた街区ではなく一筆の土地を指す。読めなければ null
+   * 地番の地域では、道路で囲まれた街区ではなく一筆の土地を指す。番地が住所データで確かめられたとき（level 8）だけ入る。level 3 では null で、番地は unmatched に残る
    */
   block: string | null;
   /**
@@ -93,9 +93,8 @@ export interface AddressResult {
   /**
    * データで確かめられなかった住所の残り（NJA の other にあたる）。無ければ ''。
    * split が 'found' なら建物部は building に切り出してある。'skipped'・'unresolved' のときは、建物部を含む残り全部。
-   * NJA の other をもとにしているので、入力の字のままではない。算用数字・漢数字と隣り合う横棒（長音を含む）は常に - になり、
-   * 町字まで読めたとき（level 3 以上）はさらに漢数字が算用数字に、番・号などが - になる。
-   * building に切り出した建物部はこの変換を受けない（ガード付き NFKC と字形の指定だけ）。'skipped'・'unresolved' では建物名が unmatched に残り、この変換を受ける
+   * NJA 3.1.3 の変換（空白・横棒・数字の表記など）がかかり、入力の字のままではない。
+   * building は NJA の変換を受けない。'skipped'・'unresolved' では建物名が unmatched に残り、この変換を受ける
    */
   unmatched: string;
   /** NJA の level（split が 'found' のときの取り方は AddressResult の説明を参照） */
