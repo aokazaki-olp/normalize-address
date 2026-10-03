@@ -40,6 +40,14 @@ const SYNTAX_RULES = {
   ],
 };
 
+const UNUSED_VARS_OPTIONS = {
+  args: 'all',
+  argsIgnorePattern: '^_',
+  varsIgnorePattern: '^_',
+  caughtErrors: 'all',
+  caughtErrorsIgnorePattern: '^_',
+};
+
 const toSelectorRegex = (regex) => `/${regex.replaceAll('/', '\\/')}/`;
 
 const RELATIVE_JS_IMPORT = {
@@ -149,7 +157,10 @@ export default defineConfig(
     files: JS_FILES,
     extends: [js.configs.recommended],
     languageOptions: { globals: globals.nodeBuiltin },
-    rules: SYNTAX_RULES,
+    rules: {
+      ...SYNTAX_RULES,
+      'no-unused-vars': ['error', UNUSED_VARS_OPTIONS],
+    },
   },
 
   {
@@ -171,17 +182,18 @@ export default defineConfig(
       ],
       'no-restricted-syntax': ['error', ...TS_RESTRICTED_SYNTAX],
       '@typescript-eslint/switch-exhaustiveness-check': 'error',
-      '@typescript-eslint/explicit-module-boundary-types': 'error',
-      '@typescript-eslint/no-unused-vars': [
+      '@typescript-eslint/explicit-module-boundary-types': [
         'error',
         {
-          args: 'all',
-          argsIgnorePattern: '^_',
-          varsIgnorePattern: '^_',
-          caughtErrors: 'all',
-          caughtErrorsIgnorePattern: '^_',
+          allowHigherOrderFunctions: false,
+          allowDirectConstAssertionInArrowFunctions: false,
         },
       ],
+      '@typescript-eslint/consistent-type-imports': [
+        'error',
+        { disallowTypeAnnotations: true },
+      ],
+      '@typescript-eslint/no-unused-vars': ['error', UNUSED_VARS_OPTIONS],
       '@typescript-eslint/no-floating-promises': [
         'error',
         {
