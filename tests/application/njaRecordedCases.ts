@@ -1,7 +1,7 @@
 /**
  * njaRecordedCases.ts
  *
- * @description 偽の parser に返させる NJA 3.1.3 の実際の結果と、その入力で期待する正規化の結果
+ * @description 偽の parser に返させる NJA 3.1.3 の実際の結果と、その入力で期待する正規化の結果（住所は試験データから取らない）
  */
 
 import type { ParsedAddress } from '../../src/ports/addressParser.ts';
@@ -90,59 +90,59 @@ const OMACHI = { prefecture: '富山県', city: '富山市', town: '大町' };
 export const NJA_RECORDED_CASES: readonly NjaRecordedCase[] = [
   {
     name: '建物名の先頭の漢数字を番地に読まれても、前半の結果を使う',
-    input: '札幌市中央区南3条西3丁目10番地三信ビル4階',
+    input: '札幌市中央区南3条西3丁目987番地三葉ビル5階',
     results: {
-      札幌市中央区南3条西3丁目10番地三信ビル4階: {
+      札幌市中央区南3条西3丁目987番地三葉ビル5階: {
         ...SAPPORO,
-        unmatched: '10-3信ビル4階',
+        unmatched: '987-3葉ビル5階',
         level: 3,
       },
-      札幌市中央区南3条西3丁目10番地: {
+      札幌市中央区南3条西3丁目987番地: {
         ...SAPPORO,
-        unmatched: '10',
+        unmatched: '987',
         level: 3,
       },
     },
     expected: {
       level: 3,
-      unmatched: '10',
-      building: '三信ビル4階',
+      unmatched: '987',
+      building: '三葉ビル5階',
       split: 'found',
     },
   },
   {
     name: '空白の後ろの階の数字を番地につなげない',
-    input: '稲城市向陽台六丁目2番地1 1階',
+    input: '稲城市向陽台六丁目87番地6 2階',
     results: {
-      '稲城市向陽台六丁目2番地1 1階': {
+      '稲城市向陽台六丁目87番地6 2階': {
         ...INAGI,
-        unmatched: '2-11階',
+        unmatched: '87-62階',
         level: 3,
       },
-      稲城市向陽台六丁目2番地1: { ...INAGI, unmatched: '2-1', level: 3 },
+      稲城市向陽台六丁目87番地6: { ...INAGI, unmatched: '87-6', level: 3 },
     },
-    expected: { level: 3, unmatched: '2-1', building: '1階', split: 'found' },
+    expected: { level: 3, unmatched: '87-6', building: '2階', split: 'found' },
   },
   {
     name: 'ハイフンでつないだ番号の最後の号室を建物部にする',
-    input: '福岡県福岡市中央区清川2-12-4-102号室',
+    input: '福岡県福岡市中央区清川2-5-8-907号室',
     results: {
-      '福岡県福岡市中央区清川2-12-4-102号室': {
+      '福岡県福岡市中央区清川2-5-8-907号室': {
         ...KIYOKAWA,
-        unmatched: '12-4-102号室',
+        unmatched: '5-8-907号室',
         level: 3,
       },
-      '福岡県福岡市中央区清川2-12-4': {
+      '福岡県福岡市中央区清川2-5-8': {
         ...KIYOKAWA,
-        block: '12-4',
+        block: '5-8',
         level: 8,
       },
     },
     expected: {
-      block: '12-4',
+      block: '5-8',
       level: 8,
       unmatched: '',
-      building: '102号室',
+      building: '907号室',
       split: 'found',
     },
   },
@@ -354,34 +354,34 @@ export const NJA_RECORDED_CASES: readonly NjaRecordedCase[] = [
   },
   {
     name: 'データで確定した番地を、level 3 の前半で上書きしない',
-    input: '東京都大田区蒲田5-11-10FUNDES蒲田7階',
+    input: '東京都大田区蒲田5-30-2FQZXビル9階',
     results: {
-      '東京都大田区蒲田5-11-10FUNDES蒲田7階': {
+      '東京都大田区蒲田5-30-2FQZXビル9階': {
         ...KAMATA,
-        block: '11-10',
-        unmatched: 'FUNDES蒲田7階',
+        block: '30-2',
+        unmatched: 'FQZXビル9階',
         level: 8,
       },
-      '東京都大田区蒲田5-11': { ...KAMATA, unmatched: '11', level: 3 },
+      '東京都大田区蒲田5-30': { ...KAMATA, unmatched: '30', level: 3 },
       東京都大田区蒲田5: { ...KAMATA, level: 3 },
-      '東京都大田区蒲田5-11-10': { ...KAMATA, block: '11-10', level: 8 },
+      '東京都大田区蒲田5-30-2': { ...KAMATA, block: '30-2', level: 8 },
     },
     expected: {
-      block: '11-10',
+      block: '30-2',
       level: 8,
       unmatched: '',
-      building: 'FUNDES蒲田7階',
+      building: 'FQZXビル9階',
       split: 'found',
     },
   },
   {
     name: '空白の後ろの数字が全体の番地の続きなら、空白でも上書きしない',
-    input: '東京都江東区東砂二丁目13番 10号棟101号',
+    input: '東京都江東区東砂二丁目13番 10号棟905号',
     results: {
-      '東京都江東区東砂二丁目13番 10号棟101号': {
+      '東京都江東区東砂二丁目13番 10号棟905号': {
         ...HIGASHISUNA,
         block: '13-10',
-        unmatched: '棟101号',
+        unmatched: '棟905号',
         level: 8,
       },
       東京都江東区東砂二丁目13番: {
@@ -396,7 +396,7 @@ export const NJA_RECORDED_CASES: readonly NjaRecordedCase[] = [
         level: 8,
       },
     },
-    expected: { block: '13-10', level: 8, unmatched: '', building: '棟101号' },
+    expected: { block: '13-10', level: 8, unmatched: '', building: '棟905号' },
   },
   {
     name: '建物部が番地の続き（地＋数字）で始まるなら受け入れない',
@@ -521,19 +521,19 @@ export const NJA_RECORDED_CASES: readonly NjaRecordedCase[] = [
   },
   {
     name: '全体が level 8 で前半（短い番地）が level 8 未満なら、-NF でも番地を守る',
-    input: '大阪府堺市南区栂３７１－３Ｆ',
+    input: '大阪府堺市南区栂１３０－３Ｆ',
     results: {
-      '大阪府堺市南区栂371-3F': {
+      '大阪府堺市南区栂130-3F': {
         ...TOGA,
-        block: '371-3',
+        block: '130-3',
         unmatched: 'F',
         level: 8,
       },
-      大阪府堺市南区栂371: { ...TOGA, unmatched: '371', level: 3 },
-      '大阪府堺市南区栂371-3': { ...TOGA, block: '371-3', level: 8 },
+      大阪府堺市南区栂130: { ...TOGA, unmatched: '130', level: 3 },
+      '大阪府堺市南区栂130-3': { ...TOGA, block: '130-3', level: 8 },
     },
     expected: {
-      block: '371-3',
+      block: '130-3',
       level: 8,
       unmatched: '',
       building: 'F',
@@ -541,18 +541,18 @@ export const NJA_RECORDED_CASES: readonly NjaRecordedCase[] = [
     },
   },
   {
-    name: '全体が level 8 の番地（2-9）を、-9F の階の読みで上書きしない',
-    input: '北海道札幌市中央区北一条西５－２－９Ｆ',
+    name: '全体が level 8 の番地（1-3）を、-3F の階の読みで上書きしない',
+    input: '北海道札幌市中央区北一条西５－１－３Ｆ',
     results: {
-      '北海道札幌市中央区北一条西5-2-9F': {
+      '北海道札幌市中央区北一条西5-1-3F': {
         ...KITAICHIJO,
-        block: '2-9',
+        block: '1-3',
         unmatched: 'F',
         level: 8,
       },
-      '北海道札幌市中央区北一条西5-2': {
+      '北海道札幌市中央区北一条西5-1': {
         ...KITAICHIJO,
-        unmatched: '2',
+        unmatched: '1',
         level: 3,
       },
       北海道札幌市中央区北一: {
@@ -567,14 +567,14 @@ export const NJA_RECORDED_CASES: readonly NjaRecordedCase[] = [
         unmatched: '北一条西5',
         level: 2,
       },
-      '北海道札幌市中央区北一条西5-2-9': {
+      '北海道札幌市中央区北一条西5-1-3': {
         ...KITAICHIJO,
-        block: '2-9',
+        block: '1-3',
         level: 8,
       },
     },
     expected: {
-      block: '2-9',
+      block: '1-3',
       level: 8,
       unmatched: '',
       building: 'F',
@@ -583,66 +583,71 @@ export const NJA_RECORDED_CASES: readonly NjaRecordedCase[] = [
   },
   {
     name: 'F の直後が英字なら階と読まず、データの番地を守る',
-    input: '福岡市博多区博多駅南1丁目4-4FUSHIビル2F 203',
+    input: '福岡市博多区博多駅南1丁目7-12FQZXビル3F 908',
     results: {
-      '福岡市博多区博多駅南1丁目4-4FUSHIビル2F 203': {
+      '福岡市博多区博多駅南1丁目7-12FQZXビル3F 908': {
         ...HAKATA,
-        block: '4-4',
-        unmatched: 'FUSHIビル2F 203',
+        block: '7-12',
+        unmatched: 'FQZXビル3F 908',
         level: 8,
       },
-      福岡市博多区博多駅南1丁目4: { ...HAKATA, unmatched: '4', level: 3 },
+      福岡市博多区博多駅南1丁目7: { ...HAKATA, unmatched: '7', level: 3 },
       福岡市博多区博多駅南1: { ...HAKATA, level: 3 },
-      '福岡市博多区博多駅南1丁目4-4': { ...HAKATA, block: '4-4', level: 8 },
+      '福岡市博多区博多駅南1丁目7-12': { ...HAKATA, block: '7-12', level: 8 },
     },
     expected: {
-      block: '4-4',
+      block: '7-12',
       level: 8,
       unmatched: '',
-      building: 'FUSHIビル2F 203',
+      building: 'FQZXビル3F 908',
     },
   },
   {
     name: '空白の後ろの階は、全体の番地の続きに見えても受け入れる',
-    input: '千葉県松戸市岩瀬１６４番地 １階',
+    input: '千葉県松戸市岩瀬３０番地 １階',
     results: {
-      '千葉県松戸市岩瀬164番地 1階': {
+      '千葉県松戸市岩瀬30番地 1階': {
         ...IWASE,
-        block: '164-1',
+        block: '30-1',
         unmatched: '階',
         level: 8,
       },
-      千葉県松戸市岩瀬164番地: { ...IWASE, unmatched: '164', level: 3 },
+      千葉県松戸市岩瀬30番地: { ...IWASE, unmatched: '30', level: 3 },
     },
-    expected: { level: 3, unmatched: '164', building: '1階', split: 'found' },
+    expected: {
+      level: 3,
+      unmatched: '30',
+      building: '1階',
+      split: 'found',
+    },
   },
   {
     name: '先頭の長音「ー」も落として階と読む',
-    input: '神奈川県横浜市中区南仲通３－３２－１ー３Ｆ',
+    input: '神奈川県横浜市中区南仲通３－９８－７ー４Ｆ',
     results: {
-      '神奈川県横浜市中区南仲通3-32-1ー3F': {
+      '神奈川県横浜市中区南仲通3-98-7ー4F': {
         ...MINAMINAKADORI,
-        unmatched: '32-1-3F',
+        unmatched: '98-7-4F',
         level: 3,
       },
-      '神奈川県横浜市中区南仲通3-32-1': {
+      '神奈川県横浜市中区南仲通3-98-7': {
         ...MINAMINAKADORI,
-        unmatched: '32-1',
+        unmatched: '98-7',
         level: 3,
       },
     },
-    expected: { level: 3, unmatched: '32-1', building: '3F', split: 'found' },
+    expected: { level: 3, unmatched: '98-7', building: '4F', split: 'found' },
   },
   {
     name: '横棒の後ろの数字が階・部屋番号の形でなければ番地の続き',
-    input: '焼津市八楠1ー17ー1FAビレッジ101号',
+    input: '焼津市八楠1ー87ー6FKハイツ203号',
     results: {
-      焼津市八楠1ー17ー1FAビレッジ101号: {
+      焼津市八楠1ー87ー6FKハイツ203号: {
         ...YAGUSU,
-        unmatched: '17-1FAビレッジ101号',
+        unmatched: '87-6FKハイツ203号',
         level: 3,
       },
-      焼津市八楠1ー17: { ...YAGUSU, unmatched: '17', level: 3 },
+      焼津市八楠1ー87: { ...YAGUSU, unmatched: '87', level: 3 },
       焼津市八: {
         prefecture: '静岡県',
         city: '焼津市',
@@ -650,59 +655,59 @@ export const NJA_RECORDED_CASES: readonly NjaRecordedCase[] = [
         level: 2,
       },
       焼津市八楠1: { ...YAGUSU, town: '八楠', unmatched: '1', level: 3 },
-      焼津市八楠1ー17ー1: { ...YAGUSU, unmatched: '17-1', level: 3 },
+      焼津市八楠1ー87ー6: { ...YAGUSU, unmatched: '87-6', level: 3 },
     },
     expected: {
       level: 3,
-      unmatched: '17-1',
-      building: 'FAビレッジ101号',
+      unmatched: '87-6',
+      building: 'FKハイツ203号',
       split: 'found',
     },
   },
   {
     name: '番先を住所の接尾語として扱う',
-    input: '宮城県仙台市若林区六丁目字南６番先６街区５画地２',
+    input: '宮城県仙台市若林区六丁目字南２番先７街区３画地９',
     results: {
-      宮城県仙台市若林区六丁目字南6番先6街区5画地2: {
+      宮城県仙台市若林区六丁目字南2番先7街区3画地9: {
         ...WAKABAYASHI,
-        block: '6',
-        unmatched: '番先6街区5画地2',
+        block: '2',
+        unmatched: '番先7街区3画地9',
         level: 8,
       },
-      宮城県仙台市若林区六丁目字南6番先: {
+      宮城県仙台市若林区六丁目字南2番先: {
         ...WAKABAYASHI,
-        block: '6',
+        block: '2',
         unmatched: '番先',
         level: 8,
       },
     },
     expected: {
-      block: '6',
+      block: '2',
       level: 8,
       unmatched: '番先',
-      building: '6街区5画地2',
+      building: '7街区3画地9',
       split: 'found',
     },
   },
   {
     name: '数字の間の「区」も住所として読み切れている',
-    input: '富山県富山市大町２区３００－２大町スタービルＢ棟',
+    input: '富山県富山市大町８７区６５４－３ミドリ荘Ｃ棟',
     results: {
-      '富山県富山市大町2区300-2大町スタービルB棟': {
+      '富山県富山市大町87区654-3ミドリ荘C棟': {
         ...OMACHI,
-        unmatched: '2区300-2大町スタービルB棟',
+        unmatched: '87区654-3ミドリ荘C棟',
         level: 3,
       },
-      '富山県富山市大町2区300-2': {
+      '富山県富山市大町87区654-3': {
         ...OMACHI,
-        unmatched: '2区300-2',
+        unmatched: '87区654-3',
         level: 3,
       },
     },
     expected: {
       level: 3,
-      unmatched: '2区300-2',
-      building: '大町スタービルB棟',
+      unmatched: '87区654-3',
+      building: 'ミドリ荘C棟',
       split: 'found',
     },
   },

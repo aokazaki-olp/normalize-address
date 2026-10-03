@@ -166,11 +166,11 @@ describe('isAddressFront', () => {
     city: '札幌市中央区',
     town: '南三条西三丁目',
   };
-  const level3 = parsed({ ...area, unmatched: '10-3信ビル4階' });
+  const level3 = parsed({ ...area, unmatched: '10-3葉ビル5階' });
   const level8 = parsed({
     ...area,
     block: '10-3',
-    unmatched: '信ビル',
+    unmatched: '葉ビル',
     level: 8,
   });
   const noTail = parsed({ ...area, unmatched: '字北ノ作305-5クレオビル2F' });
@@ -280,7 +280,7 @@ describe('isAddressFront', () => {
     [
       '読み切り：数字の間の 区',
       level3,
-      { ...area, unmatched: '2区300-2' },
+      { ...area, unmatched: '87区654-3' },
       'ビル',
       true,
     ],
@@ -377,15 +377,15 @@ describe('isAddressFront', () => {
     [
       '続きでない：横棒の後ろの数字だけは枝番',
       level3,
-      { ...area, unmatched: '1646' },
+      { ...area, unmatched: '987' },
       'ー1',
       false,
     ],
     [
       '続きでない：横棒の後ろの 数字＋F＋英字 は番地の続き',
       level3,
-      { ...area, unmatched: '17' },
-      'ー1FAビレッジ',
+      { ...area, unmatched: '87' },
+      'ー6FKハイツ',
       false,
     ],
     [
@@ -409,7 +409,7 @@ describe('isAddressFront', () => {
       '番地の保持：全体が level 8 で前半が level 3 なら受け入れない',
       level8,
       { ...area, unmatched: '10' },
-      '3FUNDES',
+      '3FQZXビル',
       false,
     ],
     [
@@ -423,7 +423,7 @@ describe('isAddressFront', () => {
       '番地の保持：建物部が漢数字で始まれば受け入れる',
       level8,
       { ...area, unmatched: '10' },
-      '三信ビル',
+      '三葉ビル',
       true,
     ],
     [
@@ -465,7 +465,7 @@ describe('isAddressFront', () => {
       '番地の保持：空白の後ろでも F の直後が英字なら階でない',
       level8,
       { ...area, unmatched: '10' },
-      ' 3FUSHI',
+      ' 3FQZX',
       false,
     ],
     [
