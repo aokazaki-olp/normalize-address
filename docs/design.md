@@ -1,5 +1,7 @@
 # normalize-address 設計
 
+設計のメモ。コード・TSDoc と食い違うときは、それらを正とする（レイヤー構成と依存の向きを除く）。
+
 日本の住所を正規化する。住所の解析は NJA（`@geolonia/normalize-japanese-addresses` 3.1.3）に任せ、建物部は、入力にガード付き NFKC をかけたテキストから切り出す。系列全体の設計と決定の経緯は作業場所の `docs/design.md` にある。
 
 補助資料：[japanese-address-structure.md](japanese-address-structure.md)（住所の構造と訳語）、[nja-3.1.3-char-rules.md](nja-3.1.3-char-rules.md)（NJA 3.1.3 の文字の扱い）
