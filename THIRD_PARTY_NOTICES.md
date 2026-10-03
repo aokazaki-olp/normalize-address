@@ -10,7 +10,7 @@
 由来するファイル：
 
 - `src/domain/abrgNormalize.ts`（`abrg/internal/normalize` の `address_hyphen.go`・`address_type.go`・`normalize.go`・`pipeline.go`・`dash.go`・`whitespace.go`・`punctuation.go` の規則を TypeScript に移植したもの）
-- `tests/domain/abrgNormalizeCases.ts`（`abrg/internal/normalize` の `address_hyphen_test.go`・`address_type_test.go`・`normalize_test.go`・`pipeline_test.go` のテストの入力と期待値）
+- `tests/domain/abrgNormalizeCases.ts`（`abrg/internal/normalize` の `address_hyphen_test.go`・`address_type_test.go`・`dash_test.go`・`normalize_test.go`・`pipeline_test.go` のテストの入力と期待値）
 - ビルドした配布物のうち、`src/domain/abrgNormalize.ts` から作られた `dist/domain/abrgNormalize.js` と `dist/domain/abrgNormalize.d.ts`
 
 ```text

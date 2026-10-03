@@ -21,6 +21,7 @@ import {
   BASIC_NORMALIZE_CASES,
   DETECT_ADDRESS_TYPE_CASES,
   NORMALIZE_ADDRESS_TEXT_CASES,
+  NORMALIZE_DASHES_CASES,
   type StringCase,
 } from './abrgNormalizeCases.ts';
 
@@ -75,6 +76,8 @@ const describeStringCases = (
     }
   });
 };
+
+describeStringCases('normalizeDashes', NORMALIZE_DASHES_CASES, normalizeDashes);
 
 describeStringCases(
   'addressNumbersToHyphen',
