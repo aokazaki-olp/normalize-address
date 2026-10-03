@@ -513,6 +513,7 @@ export const NJA_RECORDED_CASES: readonly NjaRecordedCase[] = [
       東京都新宿区四谷三丁目7番地: { ...YOTSUYA, unmatched: '7', level: 3 },
     },
     expected: {
+      block: null,
       level: 3,
       unmatched: '7',
       building: '四谷無三四堂ビル2階',
@@ -615,6 +616,7 @@ export const NJA_RECORDED_CASES: readonly NjaRecordedCase[] = [
       千葉県松戸市岩瀬30番地: { ...IWASE, unmatched: '30', level: 3 },
     },
     expected: {
+      block: null,
       level: 3,
       unmatched: '30',
       building: '1階',

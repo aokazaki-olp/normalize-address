@@ -390,6 +390,93 @@ describe('createAddressNormalizer', () => {
     assert.equal(result.building, building);
   });
 
+  it('建物部の始まりの位置の1つ目の候補を受け入れなければ、2つ目の候補で切る', async () => {
+    const parser = createFakeParser({
+      '東京都渋谷区道玄坂1-2-3-405号室 ゾゾ荘': {
+        ...SHIBUYA,
+        block: '2-3',
+        unmatched: '-405号室 ゾゾ荘',
+        level: 8,
+      },
+      '東京都渋谷区道玄坂1-2-3-405号室': {
+        prefecture: '東京都',
+        city: '渋谷区',
+        unmatched: '道玄坂1-2-3-405号室',
+        level: 2,
+      },
+      '東京都渋谷区道玄坂1-2-3': { ...SHIBUYA, block: '2-3', level: 8 },
+    });
+    const result = await createAddressNormalizer(parser).normalize(
+      '東京都渋谷区道玄坂1-2-3-405号室 ゾゾ荘',
+    );
+    assert.equal(result.split, 'found');
+    assert.equal(result.block, '2-3');
+    assert.equal(result.building, '405号室 ゾゾ荘');
+    assert.deepEqual(parser.calls, [
+      '東京都渋谷区道玄坂1-2-3-405号室 ゾゾ荘',
+      '東京都渋谷区道玄坂1-2-3-405号室',
+      '東京都渋谷区道玄坂1-2-3',
+    ]);
+  });
+
+  it('建物部の始まりの位置の1つ目の候補の建物部が空なら、2つ目の候補で切る', async () => {
+    const parser = createFakeParser({
+      '東京都渋谷区道玄坂1-2-3-405号室 -': {
+        ...SHIBUYA,
+        block: '2-3',
+        unmatched: '-405号室 -',
+        level: 8,
+      },
+      '東京都渋谷区道玄坂1-2-3': { ...SHIBUYA, block: '2-3', level: 8 },
+    });
+    const result = await createAddressNormalizer(parser).normalize(
+      '東京都渋谷区道玄坂1-2-3-405号室 -',
+    );
+    assert.equal(result.split, 'found');
+    assert.equal(result.building, '405号室 -');
+    assert.deepEqual(parser.calls, [
+      '東京都渋谷区道玄坂1-2-3-405号室 -',
+      '東京都渋谷区道玄坂1-2-3',
+    ]);
+  });
+
+  it('空文字の入力は level 0・skipped で、例外にしない', async () => {
+    const parser = createFakeParser({});
+    const result = await createAddressNormalizer(parser).normalize('');
+    assert.equal(result.level, 0);
+    assert.equal(result.split, 'skipped');
+    assert.equal(result.building, '');
+    assert.equal(result.unmatched, '');
+  });
+
+  it('切れ目の候補で切ったときは、住所の項目と level を全体の結果から取る', async () => {
+    const parser = createFakeParser({
+      '東京都渋谷区道玄坂1-2-3ビル': {
+        ...SHIBUYA,
+        block: '2-3',
+        unmatched: 'ビル',
+        level: 8,
+      },
+      '東京都渋谷区道玄坂1-2-3': { ...SHIBUYA, unmatched: '2-3', level: 3 },
+    });
+    const result =
+      await createAddressNormalizer(parser).normalize(
+        '東京都渋谷区道玄坂1-2-3ビル',
+      );
+    assert.equal(result.split, 'found');
+    assert.equal(result.block, '2-3');
+    assert.equal(result.level, 8);
+    assert.equal(result.unmatched, '2-3');
+    assert.equal(result.building, 'ビル');
+    assert.deepEqual(parser.calls, [
+      '東京都渋谷区道玄坂1-2-3ビル',
+      '東京都渋谷区道玄坂1-2-3',
+      '東京都渋谷区道玄坂1',
+      '東京都渋谷区道玄坂1-2',
+      '東京都渋谷区道玄坂1-2-3',
+    ]);
+  });
+
   it('解析の失敗はそのまま伝える', async () => {
     const failure = new Error('取得の失敗');
     const normalizer = createAddressNormalizer({

@@ -157,4 +157,38 @@ describe('buildResult', () => {
     assert.equal(result.block, '１');
     assert.equal(result.building, 'ビル１F');
   });
+  it('項目ごとの字形の指定は、それぞれの項目に当てる', () => {
+    const fields = {
+      prefecture: { chars: { X: '1' } },
+      city: { chars: { X: '2' } },
+      town: { chars: { X: '3' } },
+      block: { chars: { X: '4' } },
+      building: { chars: { X: '5' } },
+      unmatched: { chars: { X: '6' } },
+    };
+    const whole: ParsedAddress = {
+      ...WHOLE,
+      prefecture: 'X県',
+      city: 'X市',
+      town: 'X町',
+      block: 'X',
+    };
+    const result = buildResult(
+      '入力',
+      whole,
+      { split: 'found', fieldsFrom: whole, unmatched: 'X', building: 'Xビル' },
+      prepareOptions({ style: { fields } }),
+    );
+    assert.deepEqual(
+      [
+        result.prefecture,
+        result.city,
+        result.town,
+        result.block,
+        result.building,
+        result.unmatched,
+      ],
+      ['1県', '2市', '3町', '4', '5ビル', '6'],
+    );
+  });
 });

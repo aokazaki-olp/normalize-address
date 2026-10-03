@@ -155,19 +155,30 @@ describe('createNjaParser（偽の取得処理）', () => {
     });
   });
 
+  it('都道府県の一覧の取得が 503 なら NormalizeAddressError（status は 503）', async () => {
+    respond = async () => new Response('', { status: 503 });
+    await assert.rejects(parser.parse('東京都千代田区'), (error) => {
+      assert.ok(Error.isError(error));
+      assert.equal(error.name, 'NormalizeAddressError');
+      assert.equal('status' in error ? error.status : undefined, 503);
+      return true;
+    });
+  });
+
   it('本文の途中で切れたら NormalizeAddressError（cause は元の例外）', async () => {
+    const terminated = new TypeError('terminated');
     respond = async () =>
       new Response(
         new ReadableStream({
           start: (controller) => {
             controller.enqueue(new TextEncoder().encode('{"meta":'));
-            controller.error(new TypeError('terminated'));
+            controller.error(terminated);
           },
         }),
         { status: 200 },
       );
     await assertWrapped((cause) => {
-      assert.ok(Error.isError(cause));
+      assert.equal(cause, terminated);
     });
   });
 
