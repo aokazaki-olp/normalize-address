@@ -4,6 +4,8 @@
  * @description 住所部と建物部の切れ目の判定に使う規則のデータと、それから組み立てた正規表現
  */
 
+import { HORIZONTAL_BAR_PATTERN } from '@arihirookazaki/normalize-core';
+
 // 先頭・末尾の replace で最長の接尾語を落とすため、前方が同じものは長いものを先に置く
 const ADDRESS_SUFFIXES = [
   '号',
@@ -38,8 +40,6 @@ export const ADDRESS_NUMBER_LIMIT = 2;
 export const THIRD_NUMBER_MAX_DIGITS = 2;
 // NJA 3.1.3 の正規表現が対象にする漢数字（docs/nja-3.1.3-char-rules.md）
 const KANJI_NUMERALS = '〇一二三四五六七八九十百千';
-// NJA 3.1.3 が横棒として扱う字（normalize-core の HORIZONTAL_BAR と同じ集合。normalize-core が公開していないため写す）
-const HORIZONTAL_BARS = String.raw`-\uff0d\ufe63\u2212\u2010\u2043\u2011\u2012\u2013\u2014\ufe58\u2015\u23af\u23e4\u30fc\uff70\u2500\u2501`;
 const CUT_AFTER_ANY = '号地';
 const CUT_AFTER_NUMBER_END = '番目';
 const NUMBER_CONTINUATION = '号番地';
@@ -65,11 +65,11 @@ export const LEADING_TAIL_NUMBER = new RegExp(
 export const NON_DIGITS = /[^0-9]+/gu;
 export const LEADING_SUFFIX = new RegExp(`^${SUFFIX}`, 'u');
 export const TRAILING_SUFFIX = new RegExp(`${SUFFIX}$`, 'u');
-export const LEADING_BARS = new RegExp(`^[${HORIZONTAL_BARS}]+`, 'u');
+export const LEADING_BARS = new RegExp(`^${HORIZONTAL_BAR_PATTERN}+`, 'u');
 // NJA 3.1.3 は京都市の町字を先頭で照合できないと途中の位置でも照合するため、通り名を残すと建物名の中の町名に当たる（docs/design.md の手順1）
 // 通り名には漢数字の条（四条・二十一条）があるので、漢数字は番号の形（番・号・の・丁・横棒が続く、または条の付かない2字以上）のときだけ止める。壱は NJA 3.1.3 が町字の照合で漢数字として読む字
 const KYOTO_NUMERALS = `${KANJI_NUMERALS}壱`;
-const KYOTO_STOP = `(?![\\s0-9]|[${KYOTO_NUMERALS}]+(?:[番号の丁]|[${HORIZONTAL_BARS}])|[${KYOTO_NUMERALS}]{2,}(?![${KYOTO_NUMERALS}]|条))`;
+const KYOTO_STOP = `(?![\\s0-9]|[${KYOTO_NUMERALS}]+(?:[番号の丁]|${HORIZONTAL_BAR_PATTERN})|[${KYOTO_NUMERALS}]{2,}(?![${KYOTO_NUMERALS}]|条))`;
 const KYOTO_TURN = '(?:[上下][るル]|[東西]入(?!口)[るル]?)(?![るル])';
 // 上京区などの「通り名＋N丁目（筋の数）＋町名」の N丁目 は通り名の続きで、残すと NJA が二番町などに読む。町字の五丁目・六丁目（中京区）を消さないよう、あとが算用数字・空白なら外さない
 export const KYOTO_STREET = new RegExp(
@@ -85,9 +85,9 @@ export const OYOBI = /および/gu;
 // 数字と数字の間の空白は、消すと番号がつながり番地のデータと偶然に一致するので消さない（docs/design.md の手順1）
 export const SPACE_IN_NUMBER = new RegExp(
   [
-    `(?<=${DIGIT}[${HORIZONTAL_BARS}]) +(?=${DIGIT})`,
-    `(?<=${DIGIT}) +(?=[${HORIZONTAL_BARS}]${DIGIT})`,
-    `(?<=${DIGIT}番) +(?=${DIGITS}(?:[${HORIZONTAL_BARS}]${DIGITS})?号(?!室|棟|館|地))`,
+    `(?<=${DIGIT}${HORIZONTAL_BAR_PATTERN}) +(?=${DIGIT})`,
+    `(?<=${DIGIT}) +(?=${HORIZONTAL_BAR_PATTERN}${DIGIT})`,
+    `(?<=${DIGIT}番) +(?=${DIGITS}(?:${HORIZONTAL_BAR_PATTERN}${DIGITS})?号(?!室|棟|館|地))`,
     `(?<=${DIGIT}) +(?=(?:号|番地|番)(?:$| |${DIGIT}|[外先内]))`,
   ].join('|'),
   'gu',
@@ -153,7 +153,7 @@ const LIST_TOKEN = `(?=(?<token>${group([
   ),
   LOT_GO,
   '地',
-  `[${HORIZONTAL_BARS}]`,
+  HORIZONTAL_BAR_PATTERN,
   LIST_MARK,
   BRANCH_MARK,
   '第',
