@@ -52,7 +52,7 @@ export const foundAtBuildingStart = (
  * @param whole - テキスト全体の解析の結果
  * @param front - 前半の解析の結果
  * @param building - 後半から取り出した建物部（空でない）
- * @returns 住所の項目を全体の結果から、unmatched を前半の結果から取る結果
+ * @returns unmatched を前半の結果から取る結果。住所の項目は、全体が level 8 未満で前半が level 8 なら前半の結果から、それ以外は全体の結果から取る
  */
 export const foundAtCandidate = (
   whole: ParsedAddress,
@@ -60,7 +60,7 @@ export const foundAtCandidate = (
   building: string,
 ): FoundOutcome => ({
   split: 'found',
-  fieldsFrom: whole,
+  fieldsFrom: whole.level !== 8 && front.level === 8 ? front : whole,
   unmatched: front.unmatched,
   building,
 });

@@ -300,7 +300,7 @@ export const NJA_RECORDED_CASES: readonly NjaRecordedCase[] = [
     },
   },
   {
-    name: 'ハイフンでつないだ号は住所側に残す',
+    name: 'ハイフンでつないだ3つ目の3桁の号は建物部にする',
     input: '東京都中央区銀座2丁目3番24-505号',
     results: {
       '東京都中央区銀座2丁目3番24-505号': {
@@ -308,12 +308,14 @@ export const NJA_RECORDED_CASES: readonly NjaRecordedCase[] = [
         unmatched: '3-24-505号',
         level: 3,
       },
+      東京都中央区銀座2: { ...GINZA, unmatched: '', level: 3 },
+      東京都中央区銀座2丁目3番24: { ...GINZA, unmatched: '3-24', level: 3 },
     },
     expected: {
       level: 3,
-      unmatched: '3-24-505号',
-      building: '',
-      split: 'none',
+      unmatched: '3-24',
+      building: '505号',
+      split: 'found',
     },
   },
   {
@@ -442,6 +444,46 @@ export const NJA_RECORDED_CASES: readonly NjaRecordedCase[] = [
       },
     },
     expected: { level: 3, unmatched: '2-107-716', building: '', split: 'none' },
+  },
+  {
+    name: '地番の列挙だけが後ろに続くなら、建物部にせず none にする',
+    input: '大分県臼杵市大字臼杵1番・2番合地',
+    results: {
+      大分県臼杵市大字臼杵1番・2番合地: {
+        ...USUKI,
+        block: '1',
+        unmatched: '番・2番合地',
+        level: 8,
+      },
+      大分県臼杵市大字臼杵1番: { ...USUKI, block: '1', level: 8 },
+    },
+    expected: {
+      block: '1',
+      level: 8,
+      unmatched: '番・2番合地',
+      building: '',
+      split: 'none',
+    },
+  },
+  {
+    name: 'level 3 で建物部が階の印だけになるなら、番号の最後の1桁を階に回す',
+    input: '大分県臼杵市大字臼杵2001階',
+    results: {
+      大分県臼杵市大字臼杵2001階: {
+        ...USUKI,
+        unmatched: '2001階',
+        level: 3,
+      },
+      大分県臼杵市大字臼杵2001: { ...USUKI, unmatched: '2001', level: 3 },
+      大分県臼杵市大字臼杵200: { ...USUKI, block: '200', level: 8 },
+    },
+    expected: {
+      block: '200',
+      level: 8,
+      unmatched: '',
+      building: '1階',
+      split: 'found',
+    },
   },
   {
     name: '番地の途中に番・の が残り建物名が続くとき、枝番を住所側に残す',

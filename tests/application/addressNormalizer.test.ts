@@ -47,6 +47,213 @@ describe('createAddressNormalizer', () => {
     assert.deepEqual(parser.calls, ['ニセコ1']);
   });
 
+  it('全体が level 3 で、上限までの番号の前半が level 8 なら、住所の項目を前半から取る', async () => {
+    const kioicho = {
+      prefecture: '東京都',
+      city: '千代田区',
+      town: '紀尾井町',
+    };
+    const parser = createFakeParser({
+      '東京都千代田区紀尾井町1-3-101': {
+        ...kioicho,
+        unmatched: '1-3-101',
+        level: 3,
+      },
+      '東京都千代田区紀尾井町1-3': {
+        ...kioicho,
+        block: '1-3',
+        level: 8,
+      },
+    });
+    const result =
+      await createAddressNormalizer(parser).normalize(
+        '東京都千代田区紀尾井町1-3-101',
+      );
+    assert.equal(result.block, '1-3');
+    assert.equal(result.level, 8);
+    assert.equal(result.unmatched, '');
+    assert.equal(result.building, '101');
+    assert.equal(result.split, 'found');
+  });
+
+  it('3つ目の番号が の でつながるなら、3桁以上でも住所に残して none にする', async () => {
+    const parser = createFakeParser({
+      東京都渋谷区道玄坂12の345番地の678: {
+        ...SHIBUYA,
+        unmatched: '12-345-678',
+        level: 3,
+      },
+    });
+    const result = await createAddressNormalizer(parser).normalize(
+      '東京都渋谷区道玄坂12の345番地の678',
+    );
+    assert.equal(result.split, 'none');
+    assert.equal(result.unmatched, '12-345-678');
+    assert.equal(result.building, '');
+  });
+
+  it('3つ目の3桁以上の番号が横棒でつながるなら、建物部にする', async () => {
+    const parser = createFakeParser({
+      '東京都渋谷区道玄坂12-345-678': {
+        ...SHIBUYA,
+        unmatched: '12-345-678',
+        level: 3,
+      },
+      東京都渋谷区道玄坂12: { ...SHIBUYA, unmatched: '12', level: 3 },
+      '東京都渋谷区道玄坂12-345': {
+        ...SHIBUYA,
+        unmatched: '12-345',
+        level: 3,
+      },
+    });
+    const result = await createAddressNormalizer(parser).normalize(
+      '東京都渋谷区道玄坂12-345-678',
+    );
+    assert.equal(result.split, 'found');
+    assert.equal(result.unmatched, '12-345');
+    assert.equal(result.building, '678');
+  });
+
+  it('漢数字で書いた3つ目の番号も の でつながるなら住所に残して none にする', async () => {
+    const parser = createFakeParser({
+      東京都渋谷区道玄坂三百四十の十二の五百: {
+        ...SHIBUYA,
+        unmatched: '340-12-500',
+        level: 3,
+      },
+    });
+    const result = await createAddressNormalizer(parser).normalize(
+      '東京都渋谷区道玄坂三百四十の十二の五百',
+    );
+    assert.equal(result.split, 'none');
+    assert.equal(result.unmatched, '340-12-500');
+    assert.equal(result.building, '');
+  });
+
+  it('部屋番号の列挙は住所の続きとみなさず建物部にする', async () => {
+    const parser = createFakeParser({
+      '東京都渋谷区道玄坂1-2-3 101・102号': {
+        ...SHIBUYA,
+        block: '2-3',
+        unmatched: ' 101・102号',
+        level: 8,
+      },
+      '東京都渋谷区道玄坂1-2-3': { ...SHIBUYA, block: '2-3', level: 8 },
+    });
+    const result = await createAddressNormalizer(parser).normalize(
+      '東京都渋谷区道玄坂1-2-3 101・102号',
+    );
+    assert.equal(result.split, 'found');
+    assert.equal(result.building, '101・102号');
+  });
+
+  it('最後の1字が 0 なら、1桁を階に回さない', async () => {
+    const parser = createFakeParser({
+      東京都渋谷区道玄坂14010階: {
+        ...SHIBUYA,
+        unmatched: '14010階',
+        level: 3,
+      },
+      東京都渋谷区道玄坂14010: { ...SHIBUYA, unmatched: '14010', level: 3 },
+      東京都渋谷区道玄坂1401: { ...SHIBUYA, block: '1401', level: 8 },
+    });
+    const result =
+      await createAddressNormalizer(parser).normalize(
+        '東京都渋谷区道玄坂14010階',
+      );
+    assert.equal(result.split, 'found');
+    assert.equal(result.unmatched, '14010');
+    assert.equal(result.building, '階');
+  });
+
+  it('空白のあとの階の数字だけを建物部にし、支号は住所に残す', async () => {
+    const parser = createFakeParser({
+      '東京都渋谷区道玄坂87番地13 4F': {
+        ...SHIBUYA,
+        unmatched: '87-134F',
+        level: 3,
+      },
+      東京都渋谷区道玄坂87番地13: { ...SHIBUYA, unmatched: '87-13', level: 3 },
+    });
+    const result =
+      await createAddressNormalizer(parser).normalize(
+        '東京都渋谷区道玄坂87番地13 4F',
+      );
+    assert.equal(result.split, 'found');
+    assert.equal(result.unmatched, '87-13');
+    assert.equal(result.building, '4F');
+  });
+
+  it('全体の住所の末尾が空で、後ろが地番の列挙だけなら none にする', async () => {
+    const parser = createFakeParser({
+      '東京都渋谷区道玄坂字北野245番3、245番4': {
+        ...SHIBUYA,
+        unmatched: '字北野245-3、245-4',
+        level: 3,
+      },
+      東京都渋谷区道玄坂字北野245番3: {
+        ...SHIBUYA,
+        unmatched: '字北野245-3',
+        level: 3,
+      },
+    });
+    const result = await createAddressNormalizer(parser).normalize(
+      '東京都渋谷区道玄坂字北野245番3、245番4',
+    );
+    assert.equal(result.split, 'none');
+    assert.equal(result.building, '');
+  });
+
+  it('全体の住所の末尾が空で、後ろが住所の続きでなければ unresolved のまま', async () => {
+    const parser = createFakeParser({
+      東京都渋谷区道玄坂字北野245番3ゾゾ荘: {
+        ...SHIBUYA,
+        unmatched: '字北野245-3ゾゾ荘',
+        level: 3,
+      },
+    });
+    const result = await createAddressNormalizer(parser).normalize(
+      '東京都渋谷区道玄坂字北野245番3ゾゾ荘',
+    );
+    assert.equal(result.split, 'unresolved');
+  });
+
+  it('N番地のあとの第N は枝番として住所に残し、none にする', async () => {
+    const parser = createFakeParser({
+      東京都渋谷区道玄坂甲12番地第3: {
+        ...SHIBUYA,
+        unmatched: '甲12番地第3',
+        level: 3,
+      },
+      東京都渋谷区道玄坂甲12番地: { ...SHIBUYA, unmatched: '甲12', level: 3 },
+    });
+    const result =
+      await createAddressNormalizer(parser).normalize(
+        '東京都渋谷区道玄坂甲12番地第3',
+      );
+    assert.equal(result.split, 'none');
+    assert.equal(result.building, '');
+  });
+
+  it('長い番号の並びの入力でも短い時間で返す', async () => {
+    const tail = `、${'1'.repeat(3000)}あ`;
+    const parser = createFakeParser({
+      [`東京都渋谷区道玄坂1-2-3${tail}`]: {
+        ...SHIBUYA,
+        block: '2-3',
+        unmatched: tail,
+        level: 8,
+      },
+      '東京都渋谷区道玄坂1-2-3': { ...SHIBUYA, block: '2-3', level: 8 },
+    });
+    const start = performance.now();
+    const result = await createAddressNormalizer(parser).normalize(
+      `東京都渋谷区道玄坂1-2-3${tail}`,
+    );
+    assert.ok(performance.now() - start < 500);
+    assert.equal(result.split, 'found');
+  });
+
   it('level 3 未満なら切れ目を探さない', async () => {
     const parser = createFakeParser({
       東京都渋谷区1ビル: {

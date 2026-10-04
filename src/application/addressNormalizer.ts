@@ -7,7 +7,14 @@
 import { guardedNfkc } from '@arihirookazaki/normalize-core';
 import { buildResult } from '../domain/buildResult.ts';
 import { prepareOptions } from '../domain/options.ts';
-import { isAddressFront, isSameAddress } from '../domain/split/acceptance.ts';
+import {
+  isAddressFront,
+  isAddressOnly,
+  isAddressOnlyAfterFront,
+  isSameAddress,
+  isSameAddressWithoutLastDigit,
+  movesFloorDigit,
+} from '../domain/split/acceptance.ts';
 import {
   wholeContext,
   type WholeContext,
@@ -30,7 +37,8 @@ const findAtBuildingStart = async (
   parser: AddressParser,
   text: string,
   context: WholeContext,
-): Promise<FoundOutcome | undefined> => {
+): Promise<{ found?: FoundOutcome; addressOnly: boolean }> => {
+  let addressOnly = false;
   for (const start of buildingStarts(text)) {
     const after = text.slice(start);
     const building = toBuilding(after);
@@ -38,11 +46,34 @@ const findAtBuildingStart = async (
       continue;
     }
     const front = await parser.parse(text.slice(0, start));
-    if (isAddressFront(context, front, { after, building })) {
-      return foundAtBuildingStart(front, building);
+    const side = { before: text.slice(0, start), after, building };
+    if (isAddressFront(context, front, side)) {
+      return { found: foundAtBuildingStart(front, building), addressOnly };
     }
+    addressOnly ||= isAddressOnlyAfterFront(context, front, side);
   }
-  return undefined;
+  return { addressOnly };
+};
+
+const withFloorDigit = async (
+  parser: AddressParser,
+  text: string,
+  context: WholeContext,
+  position: number,
+): Promise<FoundOutcome | undefined> => {
+  if (
+    !movesFloorDigit(context, text.slice(0, position), text.slice(position))
+  ) {
+    return undefined;
+  }
+  const front = await parser.parse(text.slice(0, position - 1));
+  return isSameAddressWithoutLastDigit(context, front)
+    ? foundAtCandidate(
+        context.whole,
+        front,
+        toBuilding(text.slice(position - 1)),
+      )
+    : undefined;
 };
 
 const findAtCandidate = async (
@@ -54,9 +85,13 @@ const findAtCandidate = async (
     const front = await parser.parse(text.slice(0, position));
     if (isSameAddress(context, front)) {
       const building = toBuilding(text.slice(position));
-      return building === ''
-        ? unsplit(context.whole, 'none')
-        : foundAtCandidate(context.whole, front, building);
+      if (building === '' || isAddressOnly(building, text.slice(0, position))) {
+        return unsplit(context.whole, 'none');
+      }
+      return (
+        (await withFloorDigit(parser, text, context, position)) ??
+        foundAtCandidate(context.whole, front, building)
+      );
     }
   }
   return undefined;
@@ -70,16 +105,19 @@ const findSplit = async (
   if (whole.level < 3) {
     return unsplit(whole, 'skipped');
   }
-  const context = wholeContext(whole);
+  const context = wholeContext(whole, text);
   const atBuildingStart = await findAtBuildingStart(parser, text, context);
-  if (atBuildingStart !== undefined) {
-    return atBuildingStart;
+  if (atBuildingStart.found !== undefined) {
+    return atBuildingStart.found;
   }
   if (context.rest === '') {
     return unsplit(whole, 'none');
   }
   const atCandidate = await findAtCandidate(parser, text, context);
-  return atCandidate ?? unsplit(whole, 'unresolved');
+  return (
+    atCandidate ??
+    unsplit(whole, atBuildingStart.addressOnly ? 'none' : 'unresolved')
+  );
 };
 
 /**
