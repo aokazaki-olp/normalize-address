@@ -106,6 +106,13 @@ describe('prepareOptions', () => {
         'default の指定のクラスが half・full でない',
         { style: { default: { digit: 'wide' } } },
       ],
+      ['default の chars が文字列', { style: { default: { chars: 'abc' } } }],
+      ['default の chars が配列', { style: { default: { chars: ['a'] } } }],
+      ['default の chars が null', { style: { default: { chars: null } } }],
+      [
+        '項目ごとの chars が数値',
+        { style: { fields: { building: { chars: 1 } } } },
+      ],
       [
         '項目ごとの指定が検査を満たさない',
         { style: { fields: { unmatched: { chars: { ab: 'x' } } } } },
