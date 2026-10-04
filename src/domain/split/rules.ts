@@ -66,6 +66,16 @@ export const NON_DIGITS = /[^0-9]+/gu;
 export const LEADING_SUFFIX = new RegExp(`^${SUFFIX}`, 'u');
 export const TRAILING_SUFFIX = new RegExp(`${SUFFIX}$`, 'u');
 export const LEADING_BARS = new RegExp(`^[${HORIZONTAL_BARS}]+`, 'u');
+// 京都市の通り名（`…上ル` `…西入` など）。NJA 3.1.3 は京都市の町字を後方一致で照合するため、建物名の中の町名に当たる（docs/design.md の手順1）
+export const KYOTO_CITY = /(?<!東)京都市/u;
+export const KYOTO_STREET =
+  /^(.*?区)[^\s0-9]*?(?:[上下][るル]|[東西]入[るル]?)(?![るル])(?=[^\s0-9])/u;
+// 列挙の2つ目からの `N番地M`。NJA 3.1.3 の後処理が `N番地` を `N` にして番号がつながる（`、1444番地1` → `、14441`）
+export const LISTED_LOT_BANCHI = new RegExp(
+  `(?<=(?:、|及び)${DIGITS})番地(?=${DIGIT})`,
+  'gu',
+);
+export const OYOBI = /および/gu;
 // 住所の番号の中の空白（docs/design.md の手順1）。横棒のまわりと、番のあとの号で閉じた番号（住居表示の「○番○号」「○番○―○号」）の前、番号のあとの接尾語だけの前
 export const SPACE_IN_NUMBER = new RegExp(
   [
