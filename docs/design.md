@@ -75,7 +75,13 @@ export interface AddressPoint {
 
 ## 処理の流れ
 
-1. 入力にガード付き NFKC をかける（以下、これを「テキスト」と呼ぶ）
+1. 入力にガード付き NFKC をかけ、住所の番号の中にある空白を消す（以下、これを「テキスト」と呼ぶ）。消すのは次の空白だけで、ほかの空白は利用者が入れた住所と建物の境目として残す
+   - 横棒のまわり：左が数字と横棒で右が数字、または左が数字で右が横棒と数字（`4-13- 9`、`3-18 -5`）
+   - 左が数字と `番`（`番地` でない）で、右が `号` で閉じた番号 `M号`・`M-K号`（`号室` `号棟` `号館` `号地` を除く）。住居表示の「○番○号」「○番○―○号」の住居番号（`5番 17-103号`）
+   - 左が数字で、右が接尾語 `号` `番地` `番` だけ（あとが末尾・空白・数字・`外` `先` `内`）（`19番5 号`、`2180-1 番地外`）
+
+   数字と数字の間の空白（`1-9-9 1階`、`118番地 1階`）は消さない。消すと番号がつながり、番地のデータと偶然に一致することがある（`118-1`）
+
 2. テキスト全体を NJA にかける
 3. level が 3 未満なら、切れ目を探さない（`split: 'skipped'`、`building: ''`）
 4. 建物部の始まりの位置の候補（下記「建物部の始まりの位置」）を順に試す。候補の位置で切った後半から `building` を取り出し（手順7と同じ）、空なら次の候補へ。空でなければ前半を NJA にかけ、次の受け入れ条件をすべて満たせば切る（`split: 'found'`）。条件の名前は、コードの述語とテスト名の接頭辞にも使う（括弧の中はコードでの名前）
@@ -253,9 +259,10 @@ src/
 | `addressTail.ts`   | 全体の住所の末尾と残り、前半の住所の末尾、番号の上限（手順4の受け入れ条件）                   | 4・5・7                       |
 | `candidates.ts`    | 切れ目の候補                                                                                  | 6                             |
 | `building.ts`      | 後半から `building` を取り出す                                                                | 7                             |
+| `spaces.ts`        | 住所の番号の中にある空白を消す                                                                | 1                             |
 | `outcome.ts`       | 切れ目の探索の結果（出力の表のどの結果を使うか）                                              | 3〜8                          |
 
-`acceptance.ts` は `rules.ts`・`addressTail.ts` を、`addressTail.ts`・`building.ts`・`candidates.ts`・`buildingStart.ts` は `rules.ts` を import する（`buildingStart.ts` は split/ の外の `abrgNormalize.ts`・`trackedText.ts` も）。循環させない。
+`acceptance.ts` は `rules.ts`・`addressTail.ts` を、`addressTail.ts`・`building.ts`・`candidates.ts`・`buildingStart.ts`・`spaces.ts` は `rules.ts` を import する（`buildingStart.ts` は split/ の外の `abrgNormalize.ts`・`trackedText.ts` も）。循環させない。
 
 ## 依存
 

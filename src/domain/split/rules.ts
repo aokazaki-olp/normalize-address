@@ -66,6 +66,16 @@ export const NON_DIGITS = /[^0-9]+/gu;
 export const LEADING_SUFFIX = new RegExp(`^${SUFFIX}`, 'u');
 export const TRAILING_SUFFIX = new RegExp(`${SUFFIX}$`, 'u');
 export const LEADING_BARS = new RegExp(`^[${HORIZONTAL_BARS}]+`, 'u');
+// 住所の番号の中の空白（docs/design.md の手順1）。横棒のまわりと、番のあとの号で閉じた番号（住居表示の「○番○号」「○番○―○号」）の前、番号のあとの接尾語だけの前
+export const SPACE_IN_NUMBER = new RegExp(
+  [
+    `(?<=${DIGIT}[${HORIZONTAL_BARS}]) +(?=${DIGIT})`,
+    `(?<=${DIGIT}) +(?=[${HORIZONTAL_BARS}]${DIGIT})`,
+    `(?<=${DIGIT}番) +(?=${DIGITS}(?:[${HORIZONTAL_BARS}]${DIGITS})?号(?!室|棟|館|地))`,
+    `(?<=${DIGIT}) +(?=(?:号|番地|番)(?:$| |${DIGIT}|[外先内]))`,
+  ].join('|'),
+  'gu',
+);
 export const FIRST_ASCII_DIGIT = new RegExp(DIGIT, 'u');
 export const FRONT_UNMATCHED = new RegExp(
   `^${DIGITS}(?:${group(NUMBER_SEPARATORS)}${DIGITS})*${SUFFIX}?$`,

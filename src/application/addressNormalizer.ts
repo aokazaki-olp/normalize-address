@@ -29,6 +29,7 @@ import {
   type FoundOutcome,
   type SplitOutcome,
 } from '../domain/split/outcome.ts';
+import { removeSpacesInNumber } from '../domain/split/spaces.ts';
 import type { AddressParser, ParsedAddress } from '../ports/addressParser.ts';
 import type { AddressNormalizer } from '../ports/addressNormalizer.ts';
 import type { AddressNormalizerOptions } from '../ports/addressResult.ts';
@@ -138,7 +139,7 @@ export const createAddressNormalizer = (
       if (typeof input !== 'string') {
         throw new TypeError('input には string を指定してください');
       }
-      const text = guardedNfkc(input);
+      const text = removeSpacesInNumber(guardedNfkc(input));
       const whole = await parser.parse(text);
       const outcome = await findSplit(parser, text, whole);
       return buildResult(input, whole, outcome, prepared);
