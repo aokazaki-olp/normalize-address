@@ -83,10 +83,13 @@ export const LISTED_LOT_BANCHI = new RegExp(
 );
 export const OYOBI = /および/gu;
 // 数字と数字の間の空白は、消すと番号がつながり番地のデータと偶然に一致するので消さない（docs/design.md の手順1）
+// 横棒のあとの番号が棟・館・部屋の番号なら、空白は住所と建物の区切り（`5 - 1号館`）。[0-9] は番号の途中で判定させないため。1字の印は、空白のあとだと室町・館山などの建物名の頭と区別できないので番号の直後だけ
+const NOT_UNIT =
+  '(?![0-9]| *(?:号館|号舘|号棟|番館|号室)|[棟館舘室]|[A-Za-z]+(?:棟|館))';
 export const SPACE_IN_NUMBER = new RegExp(
   [
-    `(?<=${DIGIT}${HORIZONTAL_BAR_PATTERN}) +(?=${DIGIT})`,
-    `(?<=${DIGIT}) +(?=${HORIZONTAL_BAR_PATTERN}${DIGIT})`,
+    `(?<=${DIGIT} *${HORIZONTAL_BAR_PATTERN}) +(?=${DIGITS}${NOT_UNIT})`,
+    `(?<=${DIGIT}) +(?=${HORIZONTAL_BAR_PATTERN} *${DIGITS}${NOT_UNIT})`,
     `(?<=${DIGIT}番) +(?=${DIGITS}(?:${HORIZONTAL_BAR_PATTERN}${DIGITS})?号(?!室|棟|館|地))`,
     `(?<=${DIGIT}) +(?=(?:号|番地|番)(?:$| |${DIGIT}|[外先内]))`,
   ].join('|'),
