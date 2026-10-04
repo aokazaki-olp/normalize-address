@@ -7,6 +7,7 @@
 import { guardedNfkc } from '@arihirookazaki/normalize-core';
 import { buildResult } from '../domain/buildResult.ts';
 import { prepareOptions } from '../domain/options.ts';
+import { prefectureCandidates } from '../domain/prefectureCandidates.ts';
 import {
   isAddressFront,
   isAddressOnly,
@@ -34,6 +35,31 @@ import { removeSpacesInNumber } from '../domain/split/spaces.ts';
 import type { AddressParser, ParsedAddress } from '../ports/addressParser.ts';
 import type { AddressNormalizer } from '../ports/addressNormalizer.ts';
 import type { AddressNormalizerOptions } from '../ports/addressResult.ts';
+
+const parseScore = (parsed: ParsedAddress): number =>
+  parsed.level * 1000 +
+  (parsed.town ?? '').length * 10 -
+  parsed.unmatched.length;
+
+const parseWhole = async (
+  parser: AddressParser,
+  text: string,
+): Promise<{ text: string; whole: ParsedAddress }> => {
+  const tried: { text: string; whole: ParsedAddress }[] = [];
+  for (const prefecture of prefectureCandidates(text)) {
+    const prefixed = `${prefecture}${text}`;
+    tried.push({ text: prefixed, whole: await parser.parse(prefixed) });
+  }
+  tried.sort((a, b) => parseScore(b.whole) - parseScore(a.whole));
+  const [best, second] = tried;
+  if (
+    best !== undefined &&
+    (second === undefined || parseScore(best.whole) > parseScore(second.whole))
+  ) {
+    return best;
+  }
+  return { text, whole: await parser.parse(text) };
+};
 
 const findAtBuildingStart = async (
   parser: AddressParser,
@@ -140,8 +166,10 @@ export const createAddressNormalizer = (
       if (typeof input !== 'string') {
         throw new TypeError('input には string を指定してください');
       }
-      const text = rewriteForParser(removeSpacesInNumber(guardedNfkc(input)));
-      const whole = await parser.parse(text);
+      const { text, whole } = await parseWhole(
+        parser,
+        rewriteForParser(removeSpacesInNumber(guardedNfkc(input))),
+      );
       const outcome = await findSplit(parser, text, whole);
       return buildResult(input, whole, outcome, prepared);
     },

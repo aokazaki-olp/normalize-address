@@ -40,6 +40,43 @@ const createFakeParser = (
 };
 
 describe('createAddressNormalizer', () => {
+  it('都道府県の無い入力が同じ名前の市で始まれば、候補ごとに解析して良いほうを採る', async () => {
+    const parser = createFakeParser({
+      東京都府中市府中町一丁目12番地の7: {
+        prefecture: '東京都',
+        city: '府中市',
+        town: '府中町一丁目',
+        unmatched: '12-7',
+        level: 3,
+      },
+      広島県府中市府中町一丁目12番地の7: {
+        prefecture: '広島県',
+        city: '府中市',
+        town: '府中町',
+        unmatched: '一丁目12-7',
+        level: 3,
+      },
+    });
+    const normalizer = createAddressNormalizer(parser);
+    const result = await normalizer.normalize('府中市府中町一丁目12番地の7');
+    assert.equal(result.prefecture, '東京都');
+    assert.equal(result.town, '府中町一丁目');
+    assert.equal(result.input, '府中市府中町一丁目12番地の7');
+  });
+
+  it('都道府県の候補が同点なら、都道府県を付けずに解析する', async () => {
+    const parser = createFakeParser({
+      府中市1: { prefecture: '東京都', city: '府中市', level: 2 },
+    });
+    const normalizer = createAddressNormalizer(parser);
+    const result = await normalizer.normalize('府中市1');
+    assert.deepEqual(parser.calls, [
+      '東京都府中市1',
+      '広島県府中市1',
+      '府中市1',
+    ]);
+    assert.equal(result.prefecture, '東京都');
+  });
   it('入力にガード付き NFKC をかけてから解析する', async () => {
     const parser = createFakeParser({});
     const normalizer = createAddressNormalizer(parser);
