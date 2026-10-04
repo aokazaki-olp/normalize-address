@@ -20,7 +20,7 @@ import {
   wholeContext,
   type WholeContext,
 } from '../domain/split/addressTail.ts';
-import { toBuilding } from '../domain/split/building.ts';
+import { startsWithBareMark, toBuilding } from '../domain/split/building.ts';
 import { buildingStarts } from '../domain/split/buildingStart.ts';
 import { splitCandidates } from '../domain/split/candidates.ts';
 import {
@@ -70,7 +70,7 @@ const findAtBuildingStart = async (
   for (const start of buildingStarts(text)) {
     const after = text.slice(start);
     const building = toBuilding(after);
-    if (building === '') {
+    if (building === '' || startsWithBareMark(building)) {
       continue;
     }
     const front = await parser.parse(text.slice(0, start));
@@ -118,7 +118,9 @@ const findAtCandidate = async (
       }
       return (
         (await withFloorDigit(parser, text, context, position)) ??
-        foundAtCandidate(context.whole, front, building)
+        (startsWithBareMark(building)
+          ? unsplit(context.whole, 'unresolved')
+          : foundAtCandidate(context.whole, front, building))
       );
     }
   }

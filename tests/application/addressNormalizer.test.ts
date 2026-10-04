@@ -40,6 +40,24 @@ const createFakeParser = (
 };
 
 describe('createAddressNormalizer', () => {
+  it('手順6で切った建物部が数字の無い階の印で始まれば、切らずに unresolved にする', async () => {
+    const area = { prefecture: '架空県', city: '架空市', town: '架空町' };
+    const parser = createFakeParser({
+      架空県架空市架空町32F: {
+        ...area,
+        block: '32',
+        unmatched: 'F',
+        level: 8,
+      },
+      架空県架空市架空町32: { ...area, block: '32', level: 8 },
+    });
+    const normalizer = createAddressNormalizer(parser);
+    const result = await normalizer.normalize('架空県架空市架空町32F');
+    assert.equal(result.split, 'unresolved');
+    assert.equal(result.building, '');
+    assert.equal(result.unmatched, 'F');
+    assert.equal(result.block, '32');
+  });
   it('都道府県の無い入力が同じ名前の市で始まれば、候補ごとに解析して良いほうを採る', async () => {
     const parser = createFakeParser({
       東京都府中市府中町一丁目12番地の7: {
@@ -184,7 +202,7 @@ describe('createAddressNormalizer', () => {
     assert.equal(result.building, '101・102号');
   });
 
-  it('最後の1字が 0 なら、1桁を階に回さない', async () => {
+  it('最後の1字が 0 なら、1桁を階に回さず、残りの階は unmatched に残す', async () => {
     const parser = createFakeParser({
       東京都渋谷区道玄坂14010階: {
         ...SHIBUYA,
@@ -198,9 +216,9 @@ describe('createAddressNormalizer', () => {
       await createAddressNormalizer(parser).normalize(
         '東京都渋谷区道玄坂14010階',
       );
-    assert.equal(result.split, 'found');
-    assert.equal(result.unmatched, '14010');
-    assert.equal(result.building, '階');
+    assert.equal(result.split, 'unresolved');
+    assert.equal(result.unmatched, '14010階');
+    assert.equal(result.building, '');
   });
 
   it('空白のあとの階の数字だけを建物部にし、支号は住所に残す', async () => {

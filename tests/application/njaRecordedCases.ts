@@ -563,7 +563,7 @@ export const NJA_RECORDED_CASES: readonly NjaRecordedCase[] = [
     },
   },
   {
-    name: '全体が level 8 で前半（短い番地）が level 8 未満なら、-NF でも番地を守る',
+    name: '全体が level 8 で前半（短い番地）が level 8 未満なら、-NF でも番地を守り、残りの F は unmatched に残す',
     input: '大阪府堺市南区栂１３０－３Ｆ',
     results: {
       '大阪府堺市南区栂130-3F': {
@@ -578,13 +578,13 @@ export const NJA_RECORDED_CASES: readonly NjaRecordedCase[] = [
     expected: {
       block: '130-3',
       level: 8,
-      unmatched: '',
-      building: 'F',
-      split: 'found',
+      unmatched: 'F',
+      building: '',
+      split: 'unresolved',
     },
   },
   {
-    name: '全体が level 8 の番地（1-3）を、-3F の階の読みで上書きしない',
+    name: '全体が level 8 の番地（1-3）を、-3F の階の読みで上書きせず、残りの F は unmatched に残す',
     input: '北海道札幌市中央区北一条西５－１－３Ｆ',
     results: {
       '北海道札幌市中央区北一条西5-1-3F': {
@@ -619,9 +619,9 @@ export const NJA_RECORDED_CASES: readonly NjaRecordedCase[] = [
     expected: {
       block: '1-3',
       level: 8,
-      unmatched: '',
-      building: 'F',
-      split: 'found',
+      unmatched: 'F',
+      building: '',
+      split: 'unresolved',
     },
   },
   {

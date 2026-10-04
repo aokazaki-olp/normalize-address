@@ -108,6 +108,11 @@ export const FLOOR_AFTER_SPACE = new RegExp(
   'u',
 );
 export const ROOM = new RegExp(`^${DIGITS}${ROOM_SUFFIX}`, 'u');
+// 数字の無い階・部屋の印（番地のデータが長い番地を採り、階の数字を番地に取った残り。`32-1F` の `F`）
+export const BARE_FLOOR_OR_ROOM_MARK = new RegExp(
+  `^(?:階|(?:F|号室)(?=$|[\\s・、,(]))`,
+  'u',
+);
 export const FLOOR_OR_ROOM_MARK = new RegExp(
   `^(?:階|F${F_NOT_WORD}|${ROOM_SUFFIX})`,
   'u',
