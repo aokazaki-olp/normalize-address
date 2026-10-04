@@ -20,6 +20,10 @@ describe('prefectureCandidates', () => {
     ]);
   });
 
+  it('先頭の空白を落として判定する', () => {
+    assert.deepEqual(prefectureCandidates(' 府中市1'), ['東京都', '広島県']);
+  });
+
   it('都道府県で始まれば空', () => {
     assert.deepEqual(
       prefectureCandidates('東京都府中市府中町一丁目12番地の7'),

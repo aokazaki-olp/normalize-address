@@ -4,7 +4,7 @@
  * @description 都道府県の無い入力が同じ名前の市区町村で始まるときの、都道府県の候補
  */
 
-// JAv2 の ja.json（meta.updated 1735102668、2026-10-05 取得）で、都道府県の異なる同じ名前の市区町村。NJA 3.1.3 は都道府県が無いと候補の最後を採る
+// JAv2 の ja.json（meta.updated 1735102668、2026-10-05 取得）で、都道府県の異なる同じ名前の市区町村。NJA 3.1.3 は都道府県が無いと、町字まで読めた候補の最後を採る
 const SAME_NAME_CITIES: Readonly<Record<string, readonly string[]>> = {
   伊達市: ['北海道', '福島県'],
   松前町: ['北海道', '愛媛県'],
@@ -36,12 +36,12 @@ const SAME_NAME_CITIES: Readonly<Record<string, readonly string[]>> = {
 /**
  * 都道府県の無い入力が同じ名前の市区町村で始まるときの、都道府県の候補を返す（docs/design.md の手順2）
  *
- * @param text - 解析に渡すテキスト
+ * @param text - 解析に渡すテキスト。先頭の空白は落として判定する
  * @returns 都道府県の候補。当たらなければ空
  */
 export const prefectureCandidates = (text: string): readonly string[] => {
   const city = Object.keys(SAME_NAME_CITIES).find((name) =>
-    text.startsWith(name),
+    text.trimStart().startsWith(name),
   );
   return city === undefined ? [] : (SAME_NAME_CITIES[city] ?? []);
 };

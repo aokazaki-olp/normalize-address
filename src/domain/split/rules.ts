@@ -66,17 +66,23 @@ export const NON_DIGITS = /[^0-9]+/gu;
 export const LEADING_SUFFIX = new RegExp(`^${SUFFIX}`, 'u');
 export const TRAILING_SUFFIX = new RegExp(`${SUFFIX}$`, 'u');
 export const LEADING_BARS = new RegExp(`^[${HORIZONTAL_BARS}]+`, 'u');
-// 京都市の通り名（`…上ル` `…西入` など）。NJA 3.1.3 は京都市の町字を後方一致で照合するため、建物名の中の町名に当たる（docs/design.md の手順1）
-export const KYOTO_CITY = /(?<!東)京都市/u;
-export const KYOTO_STREET =
-  /^(.*?区)[^\s0-9]*?(?:[上下][るル]|[東西]入[るル]?)(?![るル])(?=[^\s0-9])/u;
-// 列挙の2つ目からの `N番地M`。NJA 3.1.3 の後処理が `N番地` を `N` にして番号がつながる（`、1444番地1` → `、14441`）
+// NJA 3.1.3 は京都市の町字を先頭で照合できないと途中の位置でも照合するため、通り名を残すと建物名の中の町名に当たる（docs/design.md の手順1）
+// 通り名には漢数字の条（四条・二十一条）があるので、漢数字は番号の形（番・号・の・丁・横棒が続く、または条の付かない2字以上）のときだけ止める。壱は NJA 3.1.3 が町字の照合で漢数字として読む字
+const KYOTO_NUMERALS = `${KANJI_NUMERALS}壱`;
+const KYOTO_STOP = `(?![\\s0-9]|[${KYOTO_NUMERALS}]+(?:[番号の丁]|[${HORIZONTAL_BARS}])|[${KYOTO_NUMERALS}]{2,}(?![${KYOTO_NUMERALS}]|条))`;
+const KYOTO_TURN = '(?:[上下][るル]|[東西]入(?!口)[るル]?)(?![るル])';
+// 上京区などの「通り名＋N丁目（筋の数）＋町名」の N丁目 は通り名の続きで、残すと NJA が二番町などに読む。町字の五丁目・六丁目（中京区）を消さないよう、あとが算用数字・空白なら外さない
+export const KYOTO_STREET = new RegExp(
+  `^(\\s*(?:京都府\\s*)?京都市\\s*(?:${KYOTO_STOP}.)*?区)(?:${KYOTO_STOP}.)*?${KYOTO_TURN}(?:[${KYOTO_NUMERALS}]+丁目(?:${KYOTO_TURN})?)?(?=[^\\s0-9])`,
+  'u',
+);
+// 列挙の2つ目以降の `N番地M`。NJA 3.1.3 の後処理が `N番地` を `N` にして番号がつながる（`、1444番地1` → `、14441`）
 export const LISTED_LOT_BANCHI = new RegExp(
   `(?<=(?:、|及び)${DIGITS})番地(?=${DIGIT})`,
   'gu',
 );
 export const OYOBI = /および/gu;
-// 住所の番号の中の空白（docs/design.md の手順1）。横棒のまわりと、番のあとの号で閉じた番号（住居表示の「○番○号」「○番○―○号」）の前、番号のあとの接尾語だけの前
+// 数字と数字の間の空白は、消すと番号がつながり番地のデータと偶然に一致するので消さない（docs/design.md の手順1）
 export const SPACE_IN_NUMBER = new RegExp(
   [
     `(?<=${DIGIT}[${HORIZONTAL_BARS}]) +(?=${DIGIT})`,

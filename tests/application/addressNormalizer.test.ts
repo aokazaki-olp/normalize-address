@@ -40,6 +40,24 @@ const createFakeParser = (
 };
 
 describe('createAddressNormalizer', () => {
+  it('利用者の空白のあとの F・ で始まる建物名は、印とみなさず建物部にする', async () => {
+    const area = { prefecture: '架空県', city: '架空市', town: '架空町' };
+    const parser = createFakeParser({
+      '架空県架空市架空町1-2 F・Sビル': {
+        ...area,
+        block: '1-2',
+        unmatched: ' F・Sビル',
+        level: 8,
+      },
+      '架空県架空市架空町1-2': { ...area, block: '1-2', level: 8 },
+    });
+    const result =
+      await createAddressNormalizer(parser).normalize(
+        '架空県架空市架空町1-2 F・Sビル',
+      );
+    assert.equal(result.split, 'found');
+    assert.equal(result.building, 'F・Sビル');
+  });
   it('手順6で切った建物部が数字の無い階の印で始まれば、切らずに unresolved にする', async () => {
     const area = { prefecture: '架空県', city: '架空市', town: '架空町' };
     const parser = createFakeParser({

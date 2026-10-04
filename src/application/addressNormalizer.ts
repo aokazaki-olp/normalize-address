@@ -20,7 +20,7 @@ import {
   wholeContext,
   type WholeContext,
 } from '../domain/split/addressTail.ts';
-import { startsWithBareMark, toBuilding } from '../domain/split/building.ts';
+import { isLeftoverMark, toBuilding } from '../domain/split/building.ts';
 import { buildingStarts } from '../domain/split/buildingStart.ts';
 import { splitCandidates } from '../domain/split/candidates.ts';
 import {
@@ -41,15 +41,24 @@ const parseScore = (parsed: ParsedAddress): number =>
   (parsed.town ?? '').length * 10 -
   parsed.unmatched.length;
 
+const parseEach = (
+  parser: AddressParser,
+  texts: readonly string[],
+): Promise<{ text: string; whole: ParsedAddress }[]> =>
+  Promise.all(
+    texts.map(async (text) => ({ text, whole: await parser.parse(text) })),
+  );
+
 const parseWhole = async (
   parser: AddressParser,
   text: string,
 ): Promise<{ text: string; whole: ParsedAddress }> => {
-  const tried: { text: string; whole: ParsedAddress }[] = [];
-  for (const prefecture of prefectureCandidates(text)) {
-    const prefixed = `${prefecture}${text}`;
-    tried.push({ text: prefixed, whole: await parser.parse(prefixed) });
-  }
+  const tried = await parseEach(
+    parser,
+    prefectureCandidates(text).map(
+      (prefecture) => `${prefecture}${text.trimStart()}`,
+    ),
+  );
   tried.sort((a, b) => parseScore(b.whole) - parseScore(a.whole));
   const [best, second] = tried;
   if (
@@ -70,7 +79,7 @@ const findAtBuildingStart = async (
   for (const start of buildingStarts(text)) {
     const after = text.slice(start);
     const building = toBuilding(after);
-    if (building === '' || startsWithBareMark(building)) {
+    if (building === '' || isLeftoverMark(after)) {
       continue;
     }
     const front = await parser.parse(text.slice(0, start));
@@ -118,7 +127,7 @@ const findAtCandidate = async (
       }
       return (
         (await withFloorDigit(parser, text, context, position)) ??
-        (startsWithBareMark(building)
+        (isLeftoverMark(text.slice(position))
           ? unsplit(context.whole, 'unresolved')
           : foundAtCandidate(context.whole, front, building))
       );

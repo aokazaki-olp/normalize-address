@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
-  startsWithBareMark,
+  isLeftoverMark,
   toBuilding,
 } from '../../../src/domain/split/building.ts';
 
@@ -25,22 +25,25 @@ describe('toBuilding', () => {
   }
 });
 
-describe('startsWithBareMark', () => {
+describe('isLeftoverMark', () => {
   const cases: [string, string, boolean][] = [
     ['F だけなら true', 'F', true],
+    ['横棒のあとの F も true', '-F', true],
     ['F と中黒の続きなら true', 'F・2F', true],
     ['階で始まれば true', '階100号室', true],
     ['号室で始まれば true', '号室', true],
+    ['空白のあとの F・ は建物名なので false', ' F・Iビル4階', false],
+    ['空白のあとの F( は建物名なので false', ' F(エフ)医療モール1階', false],
+    ['空白のあとの階で始まる建物名は false', ' 階上ハイツ', false],
     ['室町で始まる建物名は false', '室町綾小路ビル1階', false],
     ['F のあとが数字なら false（部屋の記号）', 'F104号', false],
     ['F のあとが英字なら false', 'FRONTIER NAGOYA', false],
     ['F のあとが棟なら false', 'F棟', false],
     ['数字で始まる階は false', '2階', false],
-    ['建物名は false', 'ビル5F', false],
   ];
-  for (const [name, building, expected] of cases) {
+  for (const [name, after, expected] of cases) {
     it(name, () => {
-      assert.equal(startsWithBareMark(building), expected);
+      assert.equal(isLeftoverMark(after), expected);
     });
   }
 });
