@@ -23,7 +23,7 @@ export type AddressNormalizer = Normalizer;
 /** 住所の正規化器を作る（AddressNormalizer.create） */
 export const AddressNormalizer: AddressNormalizerFactory = { create };
 
-export { NormalizeAddressError } from './adapters/normalizeAddressError.ts';
+export { AddressNormalizationError } from './adapters/addressNormalizationError.ts';
 export type {
   AddressLevel,
   AddressNormalizerOptions,

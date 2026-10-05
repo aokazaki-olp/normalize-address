@@ -9,10 +9,10 @@ import {
 
 import {
   createNjaParser,
-  toNormalizeAddressError,
+  toAddressNormalizationError,
   toParsedAddress,
 } from '../../src/adapters/njaParser.ts';
-import { NormalizeAddressError } from '../../src/adapters/normalizeAddressError.ts';
+import { AddressNormalizationError } from '../../src/adapters/addressNormalizationError.ts';
 
 const SAPPORO = {
   pref: '北海道',
@@ -86,12 +86,12 @@ describe('toParsedAddress', () => {
   });
 
   for (const level of [4, 7, 9, -1, 3.5]) {
-    it(`level ${String(level)} は NormalizeAddressError`, () => {
+    it(`level ${String(level)} は AddressNormalizationError`, () => {
       assert.throws(
         () => toParsedAddress({ ...SAPPORO, level }),
         (error) => {
-          assert.ok(error instanceof NormalizeAddressError);
-          assert.equal(error.name, 'NormalizeAddressError');
+          assert.ok(error instanceof AddressNormalizationError);
+          assert.equal(error.name, 'AddressNormalizationError');
           assert.equal(error.url, undefined);
           assert.equal(error.status, undefined);
           assert.equal(error.cause, undefined);
@@ -102,7 +102,7 @@ describe('toParsedAddress', () => {
   }
 });
 
-describe('toNormalizeAddressError', () => {
+describe('toAddressNormalizationError', () => {
   const originals: [string, unknown][] = [
     ['TypeError', new TypeError('terminated')],
     ['SyntaxError', new SyntaxError('Unexpected token <')],
@@ -110,26 +110,30 @@ describe('toNormalizeAddressError', () => {
     ['Error でない値', 'failure'],
   ];
   for (const [name, original] of originals) {
-    it(`${name} は cause に入れた NormalizeAddressError にする`, () => {
-      const error = toNormalizeAddressError(original);
-      assert.ok(error instanceof NormalizeAddressError);
-      assert.equal(error.name, 'NormalizeAddressError');
+    it(`${name} は cause に入れた AddressNormalizationError にする`, () => {
+      const error = toAddressNormalizationError(original);
+      assert.ok(error instanceof AddressNormalizationError);
+      assert.equal(error.name, 'AddressNormalizationError');
       assert.equal(error.url, undefined);
       assert.equal(error.status, undefined);
       assert.equal(error.cause, original);
     });
   }
 
-  it('NormalizeAddressError はそのまま返す', () => {
-    const original = new NormalizeAddressError('取得の失敗', 'https://x', 500);
-    assert.equal(toNormalizeAddressError(original), original);
+  it('AddressNormalizationError はそのまま返す', () => {
+    const original = new AddressNormalizationError(
+      '取得の失敗',
+      'https://x',
+      500,
+    );
+    assert.equal(toAddressNormalizationError(original), original);
   });
 
-  it('name が NormalizeAddressError の Error は別の複製でもそのまま返す', () => {
+  it('name が AddressNormalizationError の Error は別の複製でもそのまま返す', () => {
     const original = Object.assign(new Error('別の複製'), {
-      name: 'NormalizeAddressError',
+      name: 'AddressNormalizationError',
     });
-    assert.equal(toNormalizeAddressError(original), original);
+    assert.equal(toAddressNormalizationError(original), original);
   });
 });
 
@@ -142,30 +146,30 @@ describe('createNjaParser（偽の取得処理）', () => {
   const assertWrapped = async (check: (cause: unknown) => void) => {
     await assert.rejects(parser.parse('東京都千代田区'), (error) => {
       assert.ok(Error.isError(error));
-      assert.equal(error.name, 'NormalizeAddressError');
+      assert.equal(error.name, 'AddressNormalizationError');
       check(error.cause);
       return true;
     });
   };
 
-  it('2xx で本文が JSON でなければ NormalizeAddressError（cause は SyntaxError）', async () => {
+  it('2xx で本文が JSON でなければ AddressNormalizationError（cause は SyntaxError）', async () => {
     respond = async () => new Response('<html></html>', { status: 200 });
     await assertWrapped((cause) => {
       assert.ok(cause instanceof SyntaxError);
     });
   });
 
-  it('都道府県の一覧の取得が 503 なら NormalizeAddressError（status は 503）', async () => {
+  it('都道府県の一覧の取得が 503 なら AddressNormalizationError（status は 503）', async () => {
     respond = async () => new Response('', { status: 503 });
     await assert.rejects(parser.parse('東京都千代田区'), (error) => {
       assert.ok(Error.isError(error));
-      assert.equal(error.name, 'NormalizeAddressError');
+      assert.equal(error.name, 'AddressNormalizationError');
       assert.equal('status' in error ? error.status : undefined, 503);
       return true;
     });
   });
 
-  it('本文の途中で切れたら NormalizeAddressError（cause は元の例外）', async () => {
+  it('本文の途中で切れたら AddressNormalizationError（cause は元の例外）', async () => {
     const terminated = new TypeError('terminated');
     respond = async () =>
       new Response(
@@ -182,7 +186,7 @@ describe('createNjaParser（偽の取得処理）', () => {
     });
   });
 
-  it('未知のスキームなら NormalizeAddressError（cause は Error）', async () => {
+  it('未知のスキームなら AddressNormalizationError（cause は Error）', async () => {
     const api = config.japaneseAddressesApi;
     config.japaneseAddressesApi = 'ftp://example.invalid/ja';
     try {
@@ -195,7 +199,7 @@ describe('createNjaParser（偽の取得処理）', () => {
     }
   });
 
-  it('file:// の取得先が無ければ NormalizeAddressError（cause は ENOENT）', async () => {
+  it('file:// の取得先が無ければ AddressNormalizationError（cause は ENOENT）', async () => {
     const api = config.japaneseAddressesApi;
     config.japaneseAddressesApi = 'file:///nonexistent-normalize-address/ja';
     try {
@@ -209,7 +213,7 @@ describe('createNjaParser（偽の取得処理）', () => {
   });
 
   // NJA は形の違う JSON でも都道府県の一覧をキャッシュするので、この検査を最後に置く
-  it('形の違う JSON なら NormalizeAddressError（cause は TypeError）', async () => {
+  it('形の違う JSON なら AddressNormalizationError（cause は TypeError）', async () => {
     respond = async () => new Response('{}', { status: 200 });
     await assertWrapped((cause) => {
       assert.ok(cause instanceof TypeError);

@@ -4,7 +4,7 @@
  * @description NJA の取得処理に、応答のステータスの検査をかぶせる
  */
 
-import { NormalizeAddressError } from './normalizeAddressError.ts';
+import { AddressNormalizationError } from './addressNormalizationError.ts';
 
 /** NJA が取得処理に渡す範囲指定 */
 export interface RangeOptions {
@@ -31,12 +31,12 @@ const isExpectedStatus = (status: number, ranged: boolean): boolean =>
 /**
  * 取得処理を、応答のステータスを検査するものに包む
  *
- * 範囲指定の取得で 206 以外、それ以外の取得で 2xx 以外なら NormalizeAddressError を投げる。
- * 元の取得処理が例外を投げたときも、それを cause に入れた NormalizeAddressError にする。
+ * 範囲指定の取得で 206 以外、それ以外の取得で 2xx 以外なら AddressNormalizationError を投げる。
+ * 元の取得処理が例外を投げたときも、それを cause に入れた AddressNormalizationError にする。
  *
  * @param handler - 元の取得処理
  * @returns 検査をかぶせた取得処理
- * @throws {NormalizeAddressError} 取得に失敗した場合
+ * @throws {AddressNormalizationError} 取得に失敗した場合
  */
 export const createCheckedHttp =
   <T extends HttpResponse>(handler: HttpHandler<T>): HttpHandler<T> =>
@@ -47,7 +47,7 @@ export const createCheckedHttp =
     try {
       response = await handler(url, options);
     } catch (error) {
-      throw new NormalizeAddressError(
+      throw new AddressNormalizationError(
         `住所データの取得に失敗しました: ${target}`,
         target,
         undefined,
@@ -60,7 +60,7 @@ export const createCheckedHttp =
       return response;
     }
     await response.body?.cancel();
-    throw new NormalizeAddressError(
+    throw new AddressNormalizationError(
       `住所データの取得に失敗しました（${String(response.status)}）: ${target}`,
       target,
       response.status,

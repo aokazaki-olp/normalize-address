@@ -66,12 +66,12 @@ export interface AddressPoint {
 - `codes.lgCode` は市区町村の全国地方公共団体コード（6桁の文字列）で、市区町村まで読めなければ `null`（都道府県のコードは入らない）。JAv2 の市区町村コードは数値で先頭のゼロが落ちているので、6桁にそろえる（札幌市中央区 `11011` → `011011`）。`codes.machiazaId` は町字 ID（7桁の文字列）
 - `nja` は NJA の結果の写し（`structuredClone`）を入れる。NJA の結果の中には NJA のキャッシュのオブジェクト（`metadata.city` など）があり、そのまま渡すと利用者の書き換えが同じ読み込み単位の以後の結果に波及するため
 - `nja` の型は `Readonly<Record<string, unknown>>` のままにする。NJA の版によって形が変わりうるので、スキーマを型に固定しない（規約 §2.7 の「スキーマが本当に存在しない場合は `unknown` のまま」）
-- 公開する値は `AddressNormalizer`（モジュールオブジェクト、規約 §2.1）と `NormalizeAddressError` だけ。型は `AddressNormalizer`・`AddressNormalizerOptions`・`AddressResult`・`AddressStyle`・`AddressLevel`・`AddressPoint` と、normalize-core の `CharStyle`・`CharTarget`・`WidthMode` を再公開する。関数（`applyCharStyle` など）は再公開しない。`SplitStatus` は利用者が名前で使う必要が無いので公開の型に入れない（`AddressResult['split']` で取れる）
+- 公開する値は `AddressNormalizer`（モジュールオブジェクト、規約 §2.1）と `AddressNormalizationError` だけ。型は `AddressNormalizer`・`AddressNormalizerOptions`・`AddressResult`・`AddressStyle`・`AddressLevel`・`AddressPoint` と、normalize-core の `CharStyle`・`CharTarget`・`WidthMode` を再公開する。関数（`applyCharStyle` など）は再公開しない。`SplitStatus` は利用者が名前で使う必要が無いので公開の型に入れない（`AddressResult['split']` で取れる）
 - `create` は options を1回だけ検査・準備する（字形の指定の検査と、`default` と項目ごとの指定のマージ）。options が検査を満たさなければ `create` が `TypeError` を投げ、`normalize` は呼ぶ前から使えない。準備したものは写しなので、`create` のあとで options を書き換えても正規化器には効かない
 - 公開の interface の関数はプロパティの形で宣言する（利用者の lint の unbound-method に当たらないように。実装は this を使わないので、取り出して渡してよい）。非公開の `AddressParser.parse` も同じ形にそろえる
 - 値の `AddressNormalizer` は ports の `AddressNormalizerFactory`（`create` を持つ interface。TSDoc はそのメンバーに付ける）で型を注釈する。短縮記法の `{ create }` に付けた TSDoc は tsc が出力する `dist/index.d.ts` に届かないため。`AddressNormalizerFactory` は利用者が名前で使う必要が無いので公開の型に入れない（`typeof AddressNormalizer` で取れる）
 - NJA の設定・取得処理の差し替え（下記「失敗の扱い」）・住所データのキャッシュはモジュールの読み込み単位に1つ（worker_threads の worker ごとに別）で、`create` を何回呼んでもすべての正規化器で共有される。取得先（エンドポイント）などは `create` の引数に入れない
-- `create` の入力の誤り（options が object でない、`nja`・`codes` が boolean でない、字形の指定が検査を満たさない）と、`normalize` の入力の誤り（引数が文字列でない）は `TypeError`。それ以外で処理を終えられなかったもの（住所データの取得の失敗、NJA の処理の失敗）は `normalize` が `NormalizeAddressError` を投げる。原因は `url`・`status`・`cause` を見る（下記「失敗の扱い」）
+- `create` の入力の誤り（options が object でない、`nja`・`codes` が boolean でない、字形の指定が検査を満たさない）と、`normalize` の入力の誤り（引数が文字列でない）は `TypeError`。それ以外で処理を終えられなかったもの（住所データの取得の失敗、NJA の処理の失敗）は `normalize` が `AddressNormalizationError` を投げる。原因は `url`・`status`・`cause` を見る（下記「失敗の扱い」）
 
 ## 処理の流れ
 
@@ -194,20 +194,20 @@ type StyledField =
 例外は2種類に分ける。
 
 - `TypeError`：入力の誤りだけ（このライブラリの不具合を除く。`create` の options が検査を満たさない、`normalize` の引数が文字列でない）。同じ入力で再試行しても同じ
-- `NormalizeAddressError`：それ以外で、正規化器が処理を終えられなかったもの（住所データの取得の失敗、NJA の処理の失敗）。原因は `url`・`status`・`cause` を見る（下の表）。このライブラリの不具合の例外は包まず、そのまま出る。一時的な失敗（ネットワークの失敗、本文の途中の切断など）を含むので、再試行してよい。同じ失敗が続くこともある。取得の失敗かどうかの見分け方は作らない
+- `AddressNormalizationError`：それ以外で、正規化器が処理を終えられなかったもの（住所データの取得の失敗、NJA の処理の失敗）。原因は `url`・`status`・`cause` を見る（下の表）。このライブラリの不具合の例外は包まず、そのまま出る。一時的な失敗（ネットワークの失敗、本文の途中の切断など）を含むので、再試行してよい。同じ失敗が続くこともある。取得の失敗かどうかの見分け方は作らない
 
 ```ts
-export class NormalizeAddressError extends Error {
-  readonly name: 'NormalizeAddressError';
+export class AddressNormalizationError extends Error {
+  readonly name: 'AddressNormalizationError';
   readonly url: string | undefined; // 取得の失敗のとき、取得した URL（API キーを書き足す前）
   readonly status: number | undefined; // HTTP の応答があったときのステータス
   // 元の例外は cause（ErrorOptions）に入れる
 }
 ```
 
-利用者は `instanceof` ではなく `name` で判定できる（`error.name === 'NormalizeAddressError'`）。`instanceof` は realm を跨ぐと誤判定し、同じクラスが別の複製として読み込まれたときも一致しないため（規約 §6.2）。
+利用者は `instanceof` ではなく `name` で判定できる（`error.name === 'AddressNormalizationError'`）。`instanceof` は realm を跨ぐと誤判定し、同じクラスが別の複製として読み込まれたときも一致しないため（規約 §6.2）。
 
-`NormalizeAddressError` を投げるのは次のとき。
+`AddressNormalizationError` を投げるのは次のとき。
 
 | 場面                                                                                                  | `url` | `status` | `cause`  |
 | ----------------------------------------------------------------------------------------------------- | ----- | -------- | -------- |
@@ -217,9 +217,9 @@ export class NormalizeAddressError extends Error {
 | NJA が想定外の level（0・1・2・3・8 以外）を返した                                                    | なし  | なし     | なし     |
 | NJA がそのほかの例外を投げた（取得した本文の読み取りの失敗など）                                      | なし  | なし     | 元の例外 |
 
-NJA 3.1.3 は取得した応答が正常かを確かめず、住居表示・地番のデータでエラーが返ると例外にならずに level 3 に落ち、その結果がキャッシュされる。NJA が公開している `requestHandlers.http` を差し替え、上の取得の失敗を検査して `NormalizeAddressError` を投げる。取得処理が投げた例外もここで包む（包まないと `TypeError` として出て、入力の誤りと区別できない）。
+NJA 3.1.3 は取得した応答が正常かを確かめず、住居表示・地番のデータでエラーが返ると例外にならずに level 3 に落ち、その結果がキャッシュされる。NJA が公開している `requestHandlers.http` を差し替え、上の取得の失敗を検査して `AddressNormalizationError` を投げる。取得処理が投げた例外もここで包む（包まないと `TypeError` として出て、入力の誤りと区別できない）。
 
-NJA は応答の本文を取得処理の外で読む（NJA 3.1.3 の `dist/main-node-esm.mjs` の 503・551・566・939 行）ので、本文の途中の切断（`TypeError: terminated`）、2xx で本文が JSON でない（`SyntaxError`）、形の違う JSON（`TypeError`）、`file://` の取得先が無い（`ENOENT`）、未知のスキーム（`Error`）などは取得処理の差し替えでは包めない。そのため adapters の AddressParser で、NJA の `normalize` が投げた例外のうち `NormalizeAddressError` でないもの（判定は `name`）を、すべて `NormalizeAddressError` で包む（`url`・`status` は `undefined`、`cause` に元の例外）。私たちの domain・application の不具合で出る例外は包まない（NJA との境界の外なので）。
+NJA は応答の本文を取得処理の外で読む（NJA 3.1.3 の `dist/main-node-esm.mjs` の 503・551・566・939 行）ので、本文の途中の切断（`TypeError: terminated`）、2xx で本文が JSON でない（`SyntaxError`）、形の違う JSON（`TypeError`）、`file://` の取得先が無い（`ENOENT`）、未知のスキーム（`Error`）などは取得処理の差し替えでは包めない。そのため adapters の AddressParser で、NJA の `normalize` が投げた例外のうち `AddressNormalizationError` でないもの（判定は `name`）を、すべて `AddressNormalizationError` で包む（`url`・`status` は `undefined`、`cause` に元の例外）。私たちの domain・application の不具合で出る例外は包まない（NJA との境界の外なので）。
 
 `requestHandlers` はモジュール全体で1つなので、差し替えは最初の解析の前に1回だけ行う。`create` を何回呼んでも差し替えは1回で、すべての正規化器が同じ取得処理と住所データのキャッシュを使う。同じ読み込み単位で NJA を直接使う別のコードがあれば、その挙動も変わる。
 
@@ -231,7 +231,7 @@ src/
   application/   処理の流れ（手順1〜8）。ports の AddressParser だけを通して解析する
   domain/        純粋な処理（options の検査と準備、同じ名前の市区町村の都道府県の候補、切れ目の候補、建物部の始まりの位置と abrg の規則の移植、住所の末尾、結果の比較と組み立て）
   ports/         インターフェース（AddressParser、AddressNormalizer、AddressNormalizerFactory）と型だけ
-  adapters/      外部との接続。NJA と取得の失敗の判定、NormalizeAddressError
+  adapters/      外部との接続。NJA と取得の失敗の判定、AddressNormalizationError
 ```
 
 | 層             | import してよい他の層            | import してよい外部                                |
@@ -243,7 +243,7 @@ src/
 | `adapters/`    | `ports`                          | すべて（NJA、`node:` のモジュールなど）            |
 
 - この表を lint で止める。動的 `import()` も同じ
-- `NormalizeAddressError` は adapters に置く。投げるのは adapters だけで、application と domain は受け取らずにそのまま伝える。ports は型だけの層で、クラス（値）を置くと application・domain が値として import できるようになるため置かない。公開は `index.ts` が adapters から再 export する
+- `AddressNormalizationError` は adapters に置く。投げるのは adapters だけで、application と domain は受け取らずにそのまま伝える。ports は型だけの層で、クラス（値）を置くと application・domain が値として import できるようになるため置かない。公開は `index.ts` が adapters から再 export する
 - ports の `ParsedAddress` の項目名は結果と同じ `block`・`unmatched` にする（同じ概念に別の名前を並べない）。NJA の `addr`・`other` から写すのは adapters だけ。読めなかった項目も結果と同じく `null` にし、NJA の `undefined` を `null` にそろえるのは adapters だけ
 - `AddressLevel`・`AddressPoint` は結果の型なので ports の `addressResult.ts` に置き、`ParsedAddress` はそれを使う
 - `src/` の直下に置くのは `index.ts` だけ（ほかは層のディレクトリに置く）。lint の層の検査は層のディレクトリのファイルにしか掛からないため、テストで確かめる

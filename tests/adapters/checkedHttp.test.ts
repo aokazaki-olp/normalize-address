@@ -6,7 +6,7 @@ import {
   type HttpResponse,
   type RangeOptions,
 } from '../../src/adapters/checkedHttp.ts';
-import { NormalizeAddressError } from '../../src/adapters/normalizeAddressError.ts';
+import { AddressNormalizationError } from '../../src/adapters/addressNormalizationError.ts';
 
 const fakeHandler = (status: number) => {
   const cancelled: boolean[] = [];
@@ -57,14 +57,14 @@ describe('createCheckedHttp', () => {
     ['範囲指定の 0 バイト目からの 500', 500, { offset: 0, length: 1 }],
   ];
   for (const [name, status, options] of fails) {
-    it(`${name} は NormalizeAddressError`, async () => {
+    it(`${name} は AddressNormalizationError`, async () => {
       const { handler, cancelled } = fakeHandler(status);
       const url = new URL(URL_TEXT);
       await assert.rejects(
         createCheckedHttp(handler)(url, options),
         (error) => {
-          assert.ok(error instanceof NormalizeAddressError);
-          assert.equal(error.name, 'NormalizeAddressError');
+          assert.ok(error instanceof AddressNormalizationError);
+          assert.equal(error.name, 'AddressNormalizationError');
           assert.equal(error.status, status);
           assert.equal(error.url, new URL(URL_TEXT).toString());
           assert.equal(error.message.includes('secret'), false);
@@ -76,18 +76,18 @@ describe('createCheckedHttp', () => {
     });
   }
 
-  it('本文が無い応答でも NormalizeAddressError', async () => {
+  it('本文が無い応答でも AddressNormalizationError', async () => {
     const handler = async (): Promise<HttpResponse> => ({
       status: 500,
       body: null,
     });
     await assert.rejects(
       createCheckedHttp(handler)(new URL(URL_TEXT)),
-      NormalizeAddressError,
+      AddressNormalizationError,
     );
   });
 
-  it('取得処理の例外は cause に入れた NormalizeAddressError にする', async () => {
+  it('取得処理の例外は cause に入れた AddressNormalizationError にする', async () => {
     const failure = new TypeError('fetch failed');
     const handler = async (url: URL): Promise<HttpResponse> => {
       url.search = '?geolonia-api-key=secret';
@@ -96,8 +96,8 @@ describe('createCheckedHttp', () => {
     await assert.rejects(
       createCheckedHttp(handler)(new URL(URL_TEXT), RANGE),
       (error) => {
-        assert.ok(error instanceof NormalizeAddressError);
-        assert.equal(error.name, 'NormalizeAddressError');
+        assert.ok(error instanceof AddressNormalizationError);
+        assert.equal(error.name, 'AddressNormalizationError');
         assert.equal(error.status, undefined);
         assert.equal(error.url, new URL(URL_TEXT).toString());
         assert.equal(error.message.includes('secret'), false);
@@ -115,7 +115,7 @@ describe('createCheckedHttp', () => {
     await assert.rejects(
       createCheckedHttp(handler)(new URL(URL_TEXT)),
       (error) => {
-        assert.ok(error instanceof NormalizeAddressError);
+        assert.ok(error instanceof AddressNormalizationError);
         assert.equal(error.cause, 'network down');
         return true;
       },

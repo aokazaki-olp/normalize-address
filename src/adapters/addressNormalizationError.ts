@@ -1,5 +1,5 @@
 /**
- * normalizeAddressError.ts
+ * addressNormalizationError.ts
  *
  * @description 正規化器が処理を終えられなかったことを表すエラー
  */
@@ -13,11 +13,11 @@
  *
  * 一時的な失敗（ネットワークの失敗、本文の途中の切断など）を含むので、再試行してよい。同じ失敗が続くこともある。
  *
- * 判定は `instanceof` ではなく `error.name === 'NormalizeAddressError'` で行える。
+ * 判定は `instanceof` ではなく `error.name === 'AddressNormalizationError'` で行える。
  * `instanceof` は realm を跨ぐと誤判定し、このクラスが別の複製として読み込まれたときも一致しない。
  */
-export class NormalizeAddressError extends Error {
-  override readonly name = 'NormalizeAddressError';
+export class AddressNormalizationError extends Error {
+  override readonly name = 'AddressNormalizationError';
   /** 取得の失敗のとき、取得した URL（API キーを書き足す前）。それ以外は undefined */
   readonly url: string | undefined;
   /** HTTP の応答があったときのステータス。それ以外は undefined */

@@ -12,7 +12,7 @@ import {
 import type { AddressParser, ParsedAddress } from '../ports/addressParser.ts';
 import type { AddressLevel } from '../ports/addressResult.ts';
 import { createCheckedHttp } from './checkedHttp.ts';
-import { NormalizeAddressError } from './normalizeAddressError.ts';
+import { AddressNormalizationError } from './addressNormalizationError.ts';
 
 const LEVELS: readonly AddressLevel[] = [0, 1, 2, 3, 8];
 const LG_CODE_LENGTH = 6;
@@ -20,7 +20,7 @@ const LG_CODE_LENGTH = 6;
 const toLevel = (level: number): AddressLevel => {
   const found = LEVELS.find((candidate) => candidate === level);
   if (found === undefined) {
-    throw new NormalizeAddressError(
+    throw new AddressNormalizationError(
       `NJA が想定外の level を返しました: ${String(level)}`,
       undefined,
       undefined,
@@ -37,7 +37,7 @@ const toLevel = (level: number): AddressLevel => {
  *
  * @param result - NJA の結果
  * @returns 解析の結果
- * @throws {NormalizeAddressError} level が 0・1・2・3・8 のどれでもない場合
+ * @throws {AddressNormalizationError} level が 0・1・2・3・8 のどれでもない場合
  */
 export const toParsedAddress = (result: NormalizeResult): ParsedAddress => {
   const cityCode = result.metadata.city?.code;
@@ -67,17 +67,17 @@ export const toParsedAddress = (result: NormalizeResult): ParsedAddress => {
 };
 
 /**
- * NJA の normalize が投げた例外を NormalizeAddressError にそろえる
+ * NJA の normalize が投げた例外を AddressNormalizationError にそろえる
  *
  * NJA は応答の本文を取得処理の外で読むので、本文の読み取りの失敗などは取得処理の検査では包めない（docs/design.md の「失敗の扱い」）。
  *
  * @param error - NJA の normalize が投げた値
- * @returns name が NormalizeAddressError の Error はそのまま、それ以外は元の値を cause に入れた NormalizeAddressError
+ * @returns name が AddressNormalizationError の Error はそのまま、それ以外は元の値を cause に入れた AddressNormalizationError
  */
-export const toNormalizeAddressError = (error: unknown): Error =>
-  Error.isError(error) && error.name === 'NormalizeAddressError'
+export const toAddressNormalizationError = (error: unknown): Error =>
+  Error.isError(error) && error.name === 'AddressNormalizationError'
     ? error
-    : new NormalizeAddressError(
+    : new AddressNormalizationError(
         'NJA の処理に失敗しました',
         undefined,
         undefined,
@@ -99,7 +99,7 @@ const installCheckedHttp = (): void => {
  * NJA を使う AddressParser を作る
  *
  * 最初の解析の前に、NJA の取得処理（requestHandlers.http）を応答のステータスを検査するものに差し替える。
- * NJA の normalize が投げた例外は NormalizeAddressError にそろえる。
+ * NJA の normalize が投げた例外は AddressNormalizationError にそろえる。
  *
  * @returns AddressParser
  */
@@ -110,7 +110,7 @@ export const createNjaParser = (): AddressParser => ({
     try {
       result = await normalize(text);
     } catch (error) {
-      throw toNormalizeAddressError(error);
+      throw toAddressNormalizationError(error);
     }
     return toParsedAddress(result);
   },
