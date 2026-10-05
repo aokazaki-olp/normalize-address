@@ -4,10 +4,10 @@ import { describe, it } from 'node:test';
 import * as publicApi from '../src/index.ts';
 
 describe('公開面', () => {
-  it('AddressNormalizer と NormalizeAddressError だけを値として公開する', () => {
+  it('AddressNormalizer と AddressNormalizationError だけを値として公開する', () => {
     assert.deepEqual(Object.keys(publicApi).toSorted(), [
+      'AddressNormalizationError',
       'AddressNormalizer',
-      'NormalizeAddressError',
     ]);
     assert.deepEqual(Object.keys(publicApi.AddressNormalizer), ['create']);
   });

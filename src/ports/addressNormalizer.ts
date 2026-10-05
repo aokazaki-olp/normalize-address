@@ -17,9 +17,9 @@ export interface AddressNormalizer {
    * @param input - 住所の文字列
    * @returns 正規化の結果
    * @throws {TypeError} input が文字列でない場合（このライブラリの不具合を除き、TypeError は入力の誤りだけ）
-   * @throws {NormalizeAddressError} 入力の誤り以外で処理を終えられなかった場合（住所データの取得の失敗、NJA の処理の失敗）。
+   * @throws {AddressNormalizationError} 入力の誤り以外で処理を終えられなかった場合（住所データの取得の失敗、NJA の処理の失敗）。
    *   原因は url・status・cause を見る。
-   *   一時的な失敗（ネットワークの失敗、本文の途中の切断など）を含むので、再試行してよい。同じ失敗が続くこともある。判定は `error.name === 'NormalizeAddressError'` で行える
+   *   一時的な失敗（ネットワークの失敗、本文の途中の切断など）を含むので、再試行してよい。同じ失敗が続くこともある。判定は `error.name === 'AddressNormalizationError'` で行える
    */
   normalize: (input: string) => Promise<AddressResult>;
 }
