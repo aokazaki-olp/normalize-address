@@ -1,7 +1,7 @@
 /**
  * addressTail.ts
  *
- * @description 全体の住所の末尾と残り、前半の住所の末尾
+ * @description 全体の住所の末尾と残り（切れ目の判定の文脈）、前半の住所の末尾、番号の上限
  */
 
 import type { ParsedAddress } from '../../ports/addressParser.ts';

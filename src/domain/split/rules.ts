@@ -117,7 +117,6 @@ export const FLOOR_AFTER_SPACE = new RegExp(
   'u',
 );
 export const ROOM = new RegExp(`^${DIGITS}${ROOM_SUFFIX}`, 'u');
-// 数字の無い階・部屋の印（番地のデータが長い番地を採り、階の数字を番地に取った残り。`32-1F` の `F`）
 export const BARE_FLOOR_OR_ROOM_MARK = new RegExp(
   `^(?:階|(?:F|号室)(?=$|[\\s・、,(]))`,
   'u',
@@ -126,7 +125,7 @@ export const FLOOR_OR_ROOM_MARK = new RegExp(
   `^(?:階|F${F_NOT_WORD}|${ROOM_SUFFIX})`,
   'u',
 );
-// 地番の列挙・合併の続き（`、N番地`、`・N合併地`、`甲N`、`第N`、`及び漢N番地`）。読点・中黒は数字が続くときだけ列挙とみなす（`カ・カ` の建物名を止めない）
+// 読点・中黒は数字が続くときだけ列挙とみなす（`カ・カ` の建物名を止めない）
 const LIST_MARK = '[、,.・]';
 const BRANCH_MARK = '[甲乙丙丁戊]';
 const MERGE_WORDS = [
@@ -176,7 +175,6 @@ export const ADDRESS_LIST = new RegExp(
   `^(?=${LIST_START})(?=.*${DIGIT})${ADDRESS_WORD}(?:${LIST_TOKEN})*$`,
   'u',
 );
-// 住所の範囲を表す接尾語（地先・地内・番地先・の内・外）。建物ではない
 const ADDRESS_MODIFIERS = [
   '番地先',
   '番先',
@@ -188,7 +186,6 @@ const ADDRESS_MODIFIERS = [
   '内',
   '外',
 ] as const;
-// N番地・N番のあとの第N（第N号）は地番の枝番
 export const LOT_END = /番地?$/u;
 export const DAI_BRANCH = /^第[0-9]+号?$/u;
 export const ADDRESS_MODIFIER = new RegExp(
