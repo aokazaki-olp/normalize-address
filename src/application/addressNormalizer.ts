@@ -9,11 +9,10 @@ import { buildResult } from '../domain/buildResult.ts';
 import { prepareOptions } from '../domain/options.ts';
 import { prefectureCandidates } from '../domain/prefectureCandidates.ts';
 import {
-  isAddressFront,
   isAddressOnly,
-  isAddressOnlyAfterFront,
   isSameAddress,
   isSameAddressWithoutLastDigit,
+  judgeFront,
   movesFloorDigit,
 } from '../domain/split/acceptance.ts';
 import {
@@ -84,10 +83,15 @@ const findAtBuildingStart = async (
     }
     const front = await parser.parse(text.slice(0, start));
     const side = { before: text.slice(0, start), after, building };
-    if (isAddressFront(context, front, side)) {
-      return { found: foundAtBuildingStart(front, building), addressOnly };
+    switch (judgeFront(context, front, side)) {
+      case 'accepted':
+        return { found: foundAtBuildingStart(front, building), addressOnly };
+      case 'addressOnly':
+        addressOnly = true;
+        break;
+      case 'rejected':
+        break;
     }
-    addressOnly ||= isAddressOnlyAfterFront(context, front, side);
   }
   return { addressOnly };
 };

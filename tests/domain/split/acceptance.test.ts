@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
-  isAddressFront,
   isAddressOnly,
   isSameAddress,
   isSameAddressWithoutLastDigit,
+  judgeFront,
   movesFloorDigit,
 } from '../../../src/domain/split/acceptance.ts';
 import { wholeContext } from '../../../src/domain/split/addressTail.ts';
@@ -163,7 +163,7 @@ describe('isSameAddress', () => {
   }
 });
 
-describe('isAddressFront', () => {
+describe('judgeFront', () => {
   const area = {
     prefecture: '北海道',
     city: '札幌市中央区',
@@ -189,10 +189,11 @@ describe('isAddressFront', () => {
       for (const [name, whole, front, after, expected] of cases) {
         it(name, () => {
           assert.equal(
-            isAddressFront(wholeContext(whole), parsed(front), {
+            judgeFront(wholeContext(whole), parsed(front), {
+              before: '',
               after,
               building: toBuilding(after),
-            }),
+            }) === 'accepted',
             expected,
           );
         });
@@ -507,6 +508,54 @@ describe('isAddressFront', () => {
       true,
     ],
   ]);
+
+  describe('判定の結果', () => {
+    const context = wholeContext(level3);
+    const front = parsed({ ...area, unmatched: '10' });
+    const cases: [string, ParsedAddress, string, string, string][] = [
+      ['受け入れ条件を満たせば accepted', front, '', ' ビル', 'accepted'],
+      [
+        '後半が住所の続きだけなら addressOnly',
+        front,
+        '',
+        '、5番地',
+        'addressOnly',
+      ],
+      [
+        '切れ目より前が N番地 で終わるなら、第N は addressOnly',
+        front,
+        '架空町10番地',
+        '第3',
+        'addressOnly',
+      ],
+      [
+        '切れ目より前が N番地 で終わらなければ、第N は accepted',
+        front,
+        '架空町10',
+        '第3',
+        'accepted',
+      ],
+      [
+        '受け入れ条件を満たさなければ、後半が住所の続きだけでも rejected',
+        parsed({ ...area, town: '南四条西三丁目', unmatched: '10' }),
+        '',
+        '、5番地',
+        'rejected',
+      ],
+    ];
+    for (const [name, frontCase, before, after, expected] of cases) {
+      it(name, () => {
+        assert.equal(
+          judgeFront(context, frontCase, {
+            before,
+            after,
+            building: toBuilding(after),
+          }),
+          expected,
+        );
+      });
+    }
+  });
 });
 
 describe('isAddressOnly', () => {
