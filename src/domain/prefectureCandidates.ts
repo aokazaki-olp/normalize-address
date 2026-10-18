@@ -1,8 +1,10 @@
 /**
  * prefectureCandidates.ts
  *
- * @description 都道府県の無い入力が同じ名前の市区町村で始まるときの、都道府県の候補
+ * @description 都道府県の無い入力が同じ名前の市区町村で始まるときの、都道府県の候補と、その中から最も良い解析の結果を選ぶこと
  */
+
+import type { ParsedAddress } from '../ports/addressParser.ts';
 
 // JAv2 の ja.json（meta.updated 1735102668、2026-10-05 取得）で、都道府県の異なる同じ名前の市区町村。NJA 3.1.3 は都道府県が無いと、町字まで読めた候補の最後を採る
 const SAME_NAME_CITIES: Readonly<Record<string, readonly string[]>> = {
@@ -44,4 +46,32 @@ export const prefectureCandidates = (text: string): readonly string[] => {
     text.trimStart().startsWith(name),
   );
   return city === undefined ? [] : (SAME_NAME_CITIES[city] ?? []);
+};
+
+const parseScore = (parsed: ParsedAddress): number =>
+  parsed.level * 1000 +
+  (parsed.town ?? '').length * 10 -
+  parsed.unmatched.length;
+
+/**
+ * 都道府県の候補を付けて解析した結果から、最も良いものを選ぶ（docs/design.md の手順2）
+ *
+ * level、町字の長さ、unmatched の短さで比べる。
+ *
+ * @param tried - 候補ごとの解析の結果
+ * @returns 最も良いもの。候補が無いか、最も良いものが同点で2つ以上あれば undefined
+ */
+export const bestCandidate = <T extends { readonly whole: ParsedAddress }>(
+  tried: readonly T[],
+): T | undefined => {
+  const [best, second] = tried.toSorted(
+    (a, b) => parseScore(b.whole) - parseScore(a.whole),
+  );
+  if (
+    best === undefined ||
+    (second !== undefined && parseScore(best.whole) <= parseScore(second.whole))
+  ) {
+    return undefined;
+  }
+  return best;
 };

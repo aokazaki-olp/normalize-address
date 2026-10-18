@@ -7,7 +7,10 @@
 import { guardedNfkc } from '@arihirookazaki/normalize-core';
 import { buildResult } from '../domain/buildResult.ts';
 import { prepareOptions } from '../domain/options.ts';
-import { prefectureCandidates } from '../domain/prefectureCandidates.ts';
+import {
+  bestCandidate,
+  prefectureCandidates,
+} from '../domain/prefectureCandidates.ts';
 import {
   isAddressOnly,
   isSameAddress,
@@ -35,11 +38,6 @@ import type { AddressParser, ParsedAddress } from '../ports/addressParser.ts';
 import type { AddressNormalizer } from '../ports/addressNormalizer.ts';
 import type { AddressNormalizerOptions } from '../ports/addressResult.ts';
 
-const parseScore = (parsed: ParsedAddress): number =>
-  parsed.level * 1000 +
-  (parsed.town ?? '').length * 10 -
-  parsed.unmatched.length;
-
 const parseEach = (
   parser: AddressParser,
   texts: readonly string[],
@@ -52,21 +50,15 @@ const parseWhole = async (
   parser: AddressParser,
   text: string,
 ): Promise<{ text: string; whole: ParsedAddress }> => {
+  const candidates = prefectureCandidates(text);
+  if (candidates.length === 0) {
+    return { text, whole: await parser.parse(text) };
+  }
   const tried = await parseEach(
     parser,
-    prefectureCandidates(text).map(
-      (prefecture) => `${prefecture}${text.trimStart()}`,
-    ),
+    candidates.map((prefecture) => `${prefecture}${text.trimStart()}`),
   );
-  tried.sort((a, b) => parseScore(b.whole) - parseScore(a.whole));
-  const [best, second] = tried;
-  if (
-    best !== undefined &&
-    (second === undefined || parseScore(best.whole) > parseScore(second.whole))
-  ) {
-    return best;
-  }
-  return { text, whole: await parser.parse(text) };
+  return bestCandidate(tried) ?? { text, whole: await parser.parse(text) };
 };
 
 const findAtBuildingStart = async (
