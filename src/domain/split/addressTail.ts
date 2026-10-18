@@ -68,8 +68,8 @@ const blockNumberCount = (
 export const addressNumbers = (
   numberPart: string,
   after: string,
-  thirdIsLot = false,
-  floorDigits = 0,
+  thirdIsLot: boolean,
+  floorDigits: number,
 ): string => {
   const runs = [...numberPart.matchAll(DIGIT_RUNS)];
   let count = runs.length;
@@ -80,6 +80,7 @@ export const addressNumbers = (
         numberPart.slice(0, last.index + last[0].length - floorDigits),
         '',
         thirdIsLot,
+        0,
       );
     }
     count--;
@@ -105,8 +106,8 @@ export const addressNumbers = (
  */
 export const wholeTail = (
   whole: ParsedAddress,
-  thirdIsLot = false,
-  floorDigits = 0,
+  thirdIsLot: boolean,
+  floorDigits: number,
 ): AddressTail => {
   const numberPart = leadingTailNumber(whole.unmatched);
   const kept =
@@ -153,7 +154,7 @@ export const frontTail = (front: ParsedAddress): string => {
 export const exceedsNumberLimit = (
   front: ParsedAddress,
   after: string,
-  thirdIsLot = false,
+  thirdIsLot: boolean,
 ): boolean => {
   if (front.level === 8) {
     return false;
@@ -165,6 +166,7 @@ export const exceedsNumberLimit = (
       numberPart,
       remaining === '' ? after : remaining,
       thirdIsLot,
+      0,
     ) !== numberPart
   );
 };
@@ -280,7 +282,10 @@ export interface WholeContext extends AddressTail {
  * @param text - ガード付き NFKC をかけたテキスト
  * @returns 全体の結果と、その住所の末尾と残り
  */
-export const wholeContext = (whole: ParsedAddress, text = ''): WholeContext => {
+export const wholeContext = (
+  whole: ParsedAddress,
+  text: string,
+): WholeContext => {
   const numberPart = leadingTailNumber(whole.unmatched);
   const thirdIsLot = whole.level !== 8 && isThirdLot(text, numberPart);
   const floorDigits =

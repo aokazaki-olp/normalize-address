@@ -32,88 +32,121 @@ const parsed = (fields: Partial<ParsedAddress>): ParsedAddress =>
 describe('wholeTail', () => {
   it('level 8 は block が末尾で unmatched が残り', () => {
     assert.deepEqual(
-      wholeTail(parsed({ level: 8, block: '2-3', unmatched: ' タワ-12F' })),
+      wholeTail(
+        parsed({ level: 8, block: '2-3', unmatched: ' タワ-12F' }),
+        false,
+        0,
+      ),
       { tail: '2-3', rest: ' タワ-12F' },
     );
   });
   it('level 8 で unmatched の先頭の号は残りから除く', () => {
     assert.deepEqual(
-      wholeTail(parsed({ level: 8, block: '3-21-5', unmatched: '号' })),
+      wholeTail(
+        parsed({ level: 8, block: '3-21-5', unmatched: '号' }),
+        false,
+        0,
+      ),
       { tail: '3-21-5', rest: '' },
     );
     assert.deepEqual(
-      wholeTail(parsed({ level: 8, block: '4-8', unmatched: '番地ビル' })),
+      wholeTail(
+        parsed({ level: 8, block: '4-8', unmatched: '番地ビル' }),
+        false,
+        0,
+      ),
       { tail: '4-8', rest: 'ビル' },
     );
   });
   it('番先・地先・番地先も接尾語として除く', () => {
     assert.deepEqual(
-      wholeTail(parsed({ level: 8, block: '6', unmatched: '番先6街区' })),
+      wholeTail(
+        parsed({ level: 8, block: '6', unmatched: '番先6街区' }),
+        false,
+        0,
+      ),
       { tail: '6', rest: '6街区' },
     );
-    assert.deepEqual(wholeTail(parsed({ unmatched: '4番地先数寄屋' })), {
-      tail: '4',
-      rest: '数寄屋',
-    });
+    assert.deepEqual(
+      wholeTail(parsed({ unmatched: '4番地先数寄屋' }), false, 0),
+      {
+        tail: '4',
+        rest: '数寄屋',
+      },
+    );
   });
   it('level 8 で先頭の号を除くのは1回だけ', () => {
     assert.deepEqual(
-      wholeTail(parsed({ level: 8, block: '1-9', unmatched: '号地下1階' })),
+      wholeTail(
+        parsed({ level: 8, block: '1-9', unmatched: '号地下1階' }),
+        false,
+        0,
+      ),
       { tail: '1-9', rest: '地下1階' },
     );
   });
   it('level 3 は unmatched の先頭の番地らしい部分が末尾', () => {
-    assert.deepEqual(wholeTail(parsed({ unmatched: '12-3-4 ビル5F' })), {
-      tail: '12-3-4',
-      rest: ' ビル5F',
-    });
+    assert.deepEqual(
+      wholeTail(parsed({ unmatched: '12-3-4 ビル5F' }), false, 0),
+      {
+        tail: '12-3-4',
+        rest: ' ビル5F',
+      },
+    );
   });
   it('level 3 で番地らしい部分が無ければ末尾は空', () => {
-    assert.deepEqual(wholeTail(parsed({ unmatched: 'ビル' })), {
+    assert.deepEqual(wholeTail(parsed({ unmatched: 'ビル' }), false, 0), {
       tail: '',
       rest: 'ビル',
     });
   });
   it('level 3 で NJA が残した番地の形は、区切りを - にそろえて枝番まで末尾にする', () => {
-    assert.deepEqual(wholeTail(parsed({ unmatched: '43ノ2' })), {
+    assert.deepEqual(wholeTail(parsed({ unmatched: '43ノ2' }), false, 0), {
       tail: '43-2',
       rest: '',
     });
     assert.deepEqual(
-      wholeTail(parsed({ unmatched: '25番-5-1バティマE3階 301号室' })),
+      wholeTail(
+        parsed({ unmatched: '25番-5-1バティマE3階 301号室' }),
+        false,
+        0,
+      ),
       { tail: '25-5-1', rest: 'バティマE3階 301号室' },
     );
   });
   it('level 3 で号の後ろの数字は末尾に入れない', () => {
-    assert.deepEqual(wholeTail(parsed({ unmatched: '103号2F E1区画' })), {
-      tail: '103',
-      rest: '2F E1区画',
-    });
+    assert.deepEqual(
+      wholeTail(parsed({ unmatched: '103号2F E1区画' }), false, 0),
+      {
+        tail: '103',
+        rest: '2F E1区画',
+      },
+    );
   });
   it('level 3 で番地らしい部分の直後の号は残りから除く', () => {
-    assert.deepEqual(wholeTail(parsed({ unmatched: '5-15-2号' })), {
+    assert.deepEqual(wholeTail(parsed({ unmatched: '5-15-2号' }), false, 0), {
       tail: '5-15-2',
       rest: '',
     });
-    assert.deepEqual(wholeTail(parsed({ unmatched: '28-9号2階' })), {
+    assert.deepEqual(wholeTail(parsed({ unmatched: '28-9号2階' }), false, 0), {
       tail: '28-9',
       rest: '2階',
     });
   });
   it('level 3 で番地らしい部分の直後の番地は最長一致で除く', () => {
-    assert.deepEqual(wholeTail(parsed({ unmatched: '1番地ビル' })), {
+    assert.deepEqual(wholeTail(parsed({ unmatched: '1番地ビル' }), false, 0), {
       tail: '1',
       rest: 'ビル',
     });
   });
   it('番地らしい部分が無ければ号を除かない', () => {
-    assert.deepEqual(wholeTail(parsed({ unmatched: '号室' })), {
+    assert.deepEqual(wholeTail(parsed({ unmatched: '号室' }), false, 0), {
       tail: '',
       rest: '号室',
     });
   });
   it('末尾のハイフンは番地に含めない', () => {
-    assert.deepEqual(wholeTail(parsed({ unmatched: '1-2-' })), {
+    assert.deepEqual(wholeTail(parsed({ unmatched: '1-2-' }), false, 0), {
       tail: '1-2',
       rest: '-',
     });
@@ -122,25 +155,25 @@ describe('wholeTail', () => {
 
 describe('addressNumbers', () => {
   it('3つ目の番号が3桁以上なら、2つまでを住所の番号にする', () => {
-    assert.equal(addressNumbers('3-1-211', ''), '3-1');
-    assert.equal(addressNumbers('3-1-1201', ''), '3-1');
+    assert.equal(addressNumbers('3-1-211', '', false, 0), '3-1');
+    assert.equal(addressNumbers('3-1-1201', '', false, 0), '3-1');
   });
   it('3つ目の番号が1〜2桁なら住所の番号に残し、4つ目からは外す', () => {
-    assert.equal(addressNumbers('3-1-12', ''), '3-1-12');
-    assert.equal(addressNumbers('3-1-2', ''), '3-1-2');
-    assert.equal(addressNumbers('3-1-2-405', ''), '3-1-2');
+    assert.equal(addressNumbers('3-1-12', '', false, 0), '3-1-12');
+    assert.equal(addressNumbers('3-1-2', '', false, 0), '3-1-2');
+    assert.equal(addressNumbers('3-1-2-405', '', false, 0), '3-1-2');
   });
   it('ブロック地番の街区の番号は数に入れない', () => {
-    assert.equal(addressNumbers('87区654-3', ''), '87区654-3');
-    assert.equal(addressNumbers('87区654-3-201', ''), '87区654-3');
+    assert.equal(addressNumbers('87区654-3', '', false, 0), '87区654-3');
+    assert.equal(addressNumbers('87区654-3-201', '', false, 0), '87区654-3');
   });
   it('階・部屋の印が続く最後の番号は住所の番号にしない', () => {
-    assert.equal(addressNumbers('5番-3', 'F'), '5');
-    assert.equal(addressNumbers('5番-101', '号室'), '5');
-    assert.equal(addressNumbers('5番-3', 'FKハイツ'), '5番-3');
+    assert.equal(addressNumbers('5番-3', 'F', false, 0), '5');
+    assert.equal(addressNumbers('5番-101', '号室', false, 0), '5');
+    assert.equal(addressNumbers('5番-3', 'FKハイツ', false, 0), '5番-3');
   });
   it('番号が1つなら、印が続いても住所の番号にする', () => {
-    assert.equal(addressNumbers('5', 'F'), '5');
+    assert.equal(addressNumbers('5', 'F', false, 0), '5');
   });
 });
 
@@ -267,14 +300,17 @@ describe('exceedsNumberLimit', () => {
 
   it('level 3 の前半の番号が上限を超えれば true', () => {
     assert.equal(
-      exceedsNumberLimit(parsed({ unmatched: '3-1-211' }), ' ビル'),
+      exceedsNumberLimit(parsed({ unmatched: '3-1-211' }), ' ビル', false),
       true,
     );
   });
   it('前半の後ろが階の印で始まれば、最後の番号を数えない', () => {
-    assert.equal(exceedsNumberLimit(parsed({ unmatched: '5-3' }), '階'), true);
     assert.equal(
-      exceedsNumberLimit(parsed({ unmatched: '5-3' }), ' 2階'),
+      exceedsNumberLimit(parsed({ unmatched: '5-3' }), '階', false),
+      true,
+    );
+    assert.equal(
+      exceedsNumberLimit(parsed({ unmatched: '5-3' }), ' 2階', false),
       false,
     );
   });
@@ -283,6 +319,7 @@ describe('exceedsNumberLimit', () => {
       exceedsNumberLimit(
         parsed({ block: '3-1', unmatched: '', level: 8 }),
         '-211',
+        false,
       ),
       false,
     );

@@ -34,7 +34,7 @@ import {
 /** 建物部の始まりの位置から後ろのテキストと、そこから取り出した建物部 */
 export interface BuildingSide {
   /** 建物部の始まりの位置より前のテキスト（無ければ ''） */
-  readonly before?: string;
+  readonly before: string;
   readonly after: string;
   readonly building: string;
 }
@@ -87,7 +87,7 @@ const continuesAfterBar = (after: string, building: string): boolean =>
  * @param before - 切れ目より前のテキスト。`N番地`・`N番` で終わるなら、`第N`（`第N号`）を枝番とみなす
  * @returns 住所の続きだけなら true
  */
-export const isAddressOnly = (building: string, before = ''): boolean =>
+export const isAddressOnly = (building: string, before: string): boolean =>
   ADDRESS_LIST.test(building) ||
   ADDRESS_MODIFIER.test(building) ||
   (LOT_END.test(before) && DAI_BRANCH.test(building));
