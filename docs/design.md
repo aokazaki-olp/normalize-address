@@ -66,10 +66,10 @@ export interface AddressPoint {
 - `codes.lgCode` は市区町村の全国地方公共団体コード（6桁の文字列）で、市区町村まで読めなければ `null`（都道府県のコードは入らない）。JAv2 の市区町村コードは数値で先頭のゼロが落ちているので、6桁にそろえる（札幌市中央区 `11011` → `011011`）。`codes.machiazaId` は町字 ID（7桁の文字列）
 - `nja` は NJA の結果の写し（`structuredClone`）を入れる。NJA の結果の中には NJA のキャッシュのオブジェクト（`metadata.city` など）があり、そのまま渡すと利用者の書き換えが同じ読み込み単位の以後の結果に波及するため
 - `nja` の型は `Readonly<Record<string, unknown>>` のままにする。NJA の版によって形が変わりうるので、スキーマを型に固定しない（規約 §2.7 の「スキーマが本当に存在しない場合は `unknown` のまま」）
-- 公開する値は `AddressNormalizer`（モジュールオブジェクト、規約 §2.1）と `AddressNormalizationError` だけ。型は `AddressNormalizer`・`AddressNormalizerOptions`・`AddressResult`・`AddressStyle`・`AddressLevel`・`AddressPoint` と、normalize-core の `CharStyle`・`CharTarget`・`WidthMode` を再公開する。関数（`applyCharStyle` など）は再公開しない。`SplitStatus` は利用者が名前で使う必要が無いので公開の型に入れない（`AddressResult['split']` で取れる）
+- 公開する値は `AddressNormalizer`（モジュールオブジェクト、規約 §2.1）と `AddressNormalizationError` だけ。型は `AddressNormalizer`・`AddressNormalizerOptions`・`AddressResult`・`AddressStyle`・`AddressLevel`・`AddressPoint` と、normalize-core の `CharStyle`・`CharTarget`・`WidthMode` を再公開する。`CharStyle` は型だけを再公開し、同じ名前の値（関数をまとめた `CharStyle.apply` など）は再公開しない。`SplitStatus` は利用者が名前で使う必要が無いので公開の型に入れない（`AddressResult['split']` で取れる）
 - `create` は options を1回だけ検査・準備する（字形の指定の検査と、`default` と項目ごとの指定のマージ）。options が検査を満たさなければ `create` が `TypeError` を投げ、`normalize` は呼ぶ前から使えない。準備したものは写しなので、`create` のあとで options を書き換えても正規化器には効かない
 - 公開の interface の関数はプロパティの形で宣言する（利用者の lint の unbound-method に当たらないように。実装は this を使わないので、取り出して渡してよい）。非公開の `AddressParser.parse` も同じ形にそろえる
-- 値の `AddressNormalizer` は ports の `AddressNormalizerFactory`（`create` を持つ interface。TSDoc はそのメンバーに付ける）で型を注釈する。短縮記法の `{ create }` に付けた TSDoc は tsc が出力する `dist/index.d.ts` に届かないため。`AddressNormalizerFactory` は利用者が名前で使う必要が無いので公開の型に入れない（`typeof AddressNormalizer` で取れる）
+- 値の `AddressNormalizer` は ports の `AddressNormalizerFactory`（`create` を持つ interface。TSDoc はそのメンバーに付ける）で型を注釈する。TSDoc を `create` の宣言（`const create = …`）に付けると、tsc が出力する `dist/index.d.ts` に届かないため（オブジェクトのプロパティに直接付ければ届く。normalize-core の `CharStyle` はその形。正規化器では、契約を interface にする規約 §4.4 に合わせて Factory の interface で注釈する）。`AddressNormalizerFactory` は利用者が名前で使う必要が無いので公開の型に入れない（`typeof AddressNormalizer` で取れる）
 - NJA の設定・取得処理の差し替え（下記「失敗の扱い」）・住所データのキャッシュはモジュールの読み込み単位に1つ（worker_threads の worker ごとに別）で、`create` を何回呼んでもすべての正規化器で共有される。取得先（エンドポイント）などは `create` の引数に入れない
 - `create` の入力の誤り（options が object でない、`nja`・`codes` が boolean でない、字形の指定が検査を満たさない）と、`normalize` の入力の誤り（引数が文字列でない）は `TypeError`。それ以外で処理を終えられなかったもの（住所データの取得の失敗、NJA の処理の失敗）は `normalize` が `AddressNormalizationError` を投げる。原因は `url`・`status`・`cause` を見る（下記「失敗の扱い」）
 
@@ -87,7 +87,7 @@ export interface AddressPoint {
    - `、` または `及び` のあとの `N番地M` を `N-M` にする。NJA 3.1.3 の後処理が `N番地` を `N` にして、列挙の2つ目の番号がつながる（`、1444番地1` → `、14441`）。`・` `.` の列挙は、列挙の判定（手順7）が `番` `地` の語を手がかりにするので変えない
    - `および` を `及び` にする（列挙の語にそろえる）
 
-2. テキスト全体を NJA にかける。テキストが都道府県の無い同じ名前の市区町村（`府中市`・`伊達市` など、都道府県の異なる25組。`prefectureCandidates.ts`）で始まるときは、候補の都道府県を前に付けて1つずつかけ、level、町字の長さ、`unmatched` の短さの順で最も良いもの（同点が無いとき）を採り、そのテキストで手順3以降を行う。同点なら都道府県を付けずにかける。NJA 3.1.3 は都道府県が無いと、町字まで読めた同じ名前の候補の最後を採る（`府中市府中町一丁目` を広島県と読む）
+2. テキスト全体を NJA にかける。テキストが都道府県の無い同じ名前の市区町村（`府中市`・`伊達市` など、都道府県の異なる25組。`prefectureCandidates.ts`）で始まるときは、候補の都道府県を前に付けて1つずつかけ、level、町字の長さ、`unmatched` の短さの順で最も良いもの（同点が無いとき）を採り、そのテキストで手順3以降を行う。同点なら都道府県を付けずにかける。比べ方（`bestCandidate`）は domain の `prefectureCandidates.ts` に置き、application は解析だけを行う。NJA 3.1.3 は都道府県が無いと、町字まで読めた同じ名前の候補の最後を採る（`府中市府中町一丁目` を広島県と読む）
 3. level が 3 未満なら、切れ目を探さない（`split: 'skipped'`、`building: ''`）
 4. 建物部の始まりの位置の候補（下記「建物部の始まりの位置」）を順に試す。候補の位置で切った後半から `building` を取り出し（手順7と同じ）、空か、階・部屋の数字を番地に取った残りの印（手順6）なら次の候補へ。空でなければ前半を NJA にかけ、次の受け入れ条件をすべて満たせば切る（`split: 'found'`）。条件の名前は、コードの述語とテスト名の接頭辞にも使う（括弧の中はコードでの名前）
    - **地域一致**（`isSameArea`）：都道府県・市区町村・町字が全体の結果と一致する
@@ -159,6 +159,7 @@ abrg の `NormalizeBasicNormalized` と、それが呼ぶ関数を忠実に移�
 - Go の `\s` は `[\t\n\f\r ]`、`.` は改行以外、`\d` は ASCII の数字として書き換える。文字クラスの中の `-` はエスケープする
 - 規則の表は宣言の順に1回ずつ全件を置き換える（`applyRules`）。`ApplyFirstMatch` は最初に文字列を変えた1規則だけを当てる
 - バイト単位の処理は文字単位に書き換える（関わる字はすべて BMP）
+- `addSpaceAfterNumberBeforeJapanese` は、abrg の「1か所に空白を入れるたびに頭から探し直す」形を、元の文字列を1回だけ走査して最後に1回だけつなぐ形に変える。空白を入れても新しい一致は生まれず、住所の続きの判定は入れた位置より後ろだけを見るので、結果（文字列と元の位置）は同じ。探し直す形は長い入力で2乗を超えて伸びた（`1あ` を16,000回くり返した32,000字で約32秒、1回の走査で 0.1秒未満。2026-10-19 実測）
 - abrg のテストの入力と期待値（`address_hyphen_test.go`・`address_type_test.go`・`normalize_test.go`・`pipeline_test.go` の表の276件と `TestBasicNormalize_Pipeline` の1件）をテストに移す。移していない前処理（引用符・コメント・異体字セレクタの除去）に頼る10件は、落ちることを TODO として残す
 
 ### 元のテキストの位置への対応づけ
@@ -180,13 +181,13 @@ type StyledField =
   'prefecture' | 'city' | 'town' | 'block' | 'building' | 'unmatched';
 ```
 
-- `CharStyle` と、その当て方（`applyCharStyle`・`mergeCharStyle`）は `@arihirookazaki/normalize-core` のもの
+- `CharStyle` と、その当て方（`CharStyle.apply`）と項目ごとの準備（`CharStyle.prepareFields`）は `@arihirookazaki/normalize-core` のもの。`AddressStyle` は normalize-core の `FieldStyle<StyledField>` と同じ形で、公開の型の TSDoc を付けるために自分の interface として持つ
 - 各項目には、まずガード付き NFKC をかけ（マスターの全角 `相生１号` などを半角にそろえる）、そのあと `default` に項目ごとの指定をマージしたものを当てる。項目ごとの指定が `false` なら、字形の指定は当てない（ガード付き NFKC だけ）
 - 既定（`style` を省略したとき、またはクラスの指定を省略したとき）は、ASCII の95字（digit・alpha・symbol・space）をすべて半角にする。grep や旧来のテキストエディタで扱いやすくするため
 - ASCII に似た ASCII 以外の字（`−` U+2212、`‐` U+2010、`―` U+2015、`〜` U+301C、`’` U+2019 など）は、既定では置き換えない。ガード付き NFKC でも残る。そろえたい利用者は `chars` で指定する。このうち `−` `–` `—` `〜` は Shift_JIS（CP932）の表に無い
 - `input` には何もかけない。`nja` にもかけない
 - 字形の指定は出力の直前にだけ当てる。処理の途中（手順1〜8）は当てない
-- 検査とマージは `create` で1回だけ行う。`style`・`default`・`fields` は object、`fields` のキーは上の6項目、値は `CharStyle` か `false`。マージした指定は項目ごとに normalize-core の検査（`applyCharStyle` と同じもの）にかける
+- 検査とマージは `create` で1回だけ行う。`style`・`default`・`fields` は object、`fields` のキーは上の6項目、値は `CharStyle` か `false`。検査とマージは normalize-core の `CharStyle.prepareFields` で行い、マージした指定は項目ごとに `CharStyle.apply` と同じ検査にかかる
 - 未知のキーを検査するのは `fields` のキーだけで、options や `style` のほかのキーは検査しない（TypeScript の型検査で防げる。実行時の検査をそろえるには normalize-core も変える必要があるので、規約 §5.4 の例外とする）
 
 ## 失敗の扱い
@@ -229,7 +230,7 @@ NJA は応答の本文を取得処理の外で読む（NJA 3.1.3 の `dist/main-
 src/
   index.ts       公開面。NJA の AddressParser を1つ作り、それを使う create を AddressNormalizer として公開する
   application/   処理の流れ（手順1〜8）。ports の AddressParser だけを通して解析する
-  domain/        純粋な処理（options の検査と準備、同じ名前の市区町村の都道府県の候補、切れ目の候補、建物部の始まりの位置と abrg の規則の移植、住所の末尾、結果の比較と組み立て）
+  domain/        純粋な処理（options の検査と準備、同じ名前の市区町村の都道府県の候補と、候補ごとの解析の結果から最も良いものを選ぶこと、切れ目の候補、建物部の始まりの位置と abrg の規則の移植、住所の末尾、結果の比較と組み立て、型で閉じた switch の網羅の検査 assertNever。規約 §5.2 は src/shared/ に置くとするが、層を増やさないため、使う application から import できる domain に置く。adapters と index.ts からは import できないので、そこで閉じた switch が要るようになったら置き場所を見直す）
   ports/         インターフェース（AddressParser、AddressNormalizer、AddressNormalizerFactory）と型だけ
   adapters/      外部との接続。NJA と取得の失敗の判定、AddressNormalizationError
 ```
@@ -269,6 +270,8 @@ src/
 | `outcome.ts`       | 切れ目の探索の結果（出力の表のどの結果を使うか）                                              | 3〜8                          |
 
 `acceptance.ts` は `rules.ts`・`addressTail.ts` を、`addressTail.ts`・`building.ts`・`candidates.ts`・`buildingStart.ts`・`spaces.ts`・`rewrites.ts` は `rules.ts` を import する（`buildingStart.ts` は split/ の外の `abrgNormalize.ts`・`trackedText.ts` も）。循環させない。
+
+`rules.ts` の正規表現は、元のテキストの番号を読む3つ（`ORIGINAL_NUMBER`・`ORIGINAL_JOINER_AT`・`ORIGINAL_NUMBER_START`）を除く。前の2つは `lastIndex` を書き換えて使う sticky（`y`）で、共有すると使う側どうしで状態が漏れるので、使う `addressTail.ts` の中に非公開で置く。`ORIGINAL_NUMBER_START`（`g`、matchAll で使うので状態は漏れない）も、同じ字の集合から作る組なので一緒に置く。`rules.ts` からは字の集合（`ORIGINAL_NUMBER_CHARS`）だけを渡す。
 
 ## 依存
 

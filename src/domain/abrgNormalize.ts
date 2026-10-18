@@ -5,7 +5,6 @@
  */
 
 import {
-  concatTracked,
   insertTracked,
   insertedText,
   joinTracked,
@@ -53,7 +52,7 @@ const DASHES = new Set([
   '\u3030',
 ]);
 
-const KATAKANA_DASH = /([\d０-９])ー([\d０-９])/dgu;
+const KATAKANA_DASH = /([\d０-９])ー([\d０-９])/gu;
 
 const BAN_GAI_WITH_BUILDING = /(\d+番街)[\t\n\f\r ]*(\d+(?:号|棟))/dgu;
 const BAN_GAI = /(\d+)番街/dgu;
@@ -123,7 +122,7 @@ const FLOOR_NUMBER = /(\d+(?:-\d+)*)-(\d+(?:F|階))/dgu;
 const FIRST_ARABIC = /([\d]+(?:-[\d]+)+)/u;
 const SPACE_BEFORE_NO = / ([のノ]\d+)/dgu;
 const TRAILING_GO = /(\d+-\d+(?:-\d+)*\d+)号$/dgu;
-const NUMBER_BEFORE_JAPANESE = /(\d)([ァ-ヶぁ-ん一-龯])/du;
+const NUMBER_BEFORE_JAPANESE = /(\d)([ァ-ヶぁ-ん一-龯])/dgu;
 
 const NO_DIGIT_KEEP_CHARS = '号町丁';
 const DIGIT_NO_DIGIT_GO = /(\d)([のノ])(\d+)号([^\d\t\n\f\r ])/dgu;
@@ -468,11 +467,11 @@ const replaceBanGoEnd = (tracked: TrackedText): TrackedText => {
   ) {
     return tracked;
   }
-  return concatTracked(
+  return joinTracked([
     sliceTracked(tracked, 0, ban),
     insertedText('-'),
     sliceTracked(tracked, ban + 1, text.length - 1),
-  );
+  ]);
 };
 
 const processBanchi = (tracked: TrackedText): TrackedText => {
@@ -647,28 +646,28 @@ const sameAddressToken = (after: string): boolean =>
 export const addSpaceAfterNumberBeforeJapanese = (
   tracked: TrackedText,
 ): TrackedText => {
-  let result = tracked;
-  for (;;) {
-    const match = NUMBER_BEFORE_JAPANESE.exec(result.text);
-    const japanese = match?.indices?.[2];
-    if (match === null || japanese === undefined) {
-      return result;
+  // abrg は1か所入れるたびに頭から探し直すが、長い入力で2乗を超えて遅くなるので1回の走査にする（結果は同じ）
+  const parts: TrackedText[] = [];
+  let last = 0;
+  for (const match of tracked.text.matchAll(NUMBER_BEFORE_JAPANESE)) {
+    const japanese = match.indices?.[2]?.[0];
+    if (
+      japanese === undefined ||
+      sameAddressToken(tracked.text.slice(japanese))
+    ) {
+      break;
     }
-    if (sameAddressToken(result.text.slice(japanese[0]))) {
-      return result;
-    }
-    result = insertTracked(result, japanese[0], ' ');
+    parts.push(sliceTracked(tracked, last, japanese), insertedText(' '));
+    last = japanese;
   }
+  if (parts.length === 0) {
+    return tracked;
+  }
+  parts.push(sliceTracked(tracked, last));
+  return joinTracked(parts);
 };
 
-/**
- * 住所の型に応じて番号の表記を整える（applyAddressFormatting）
- *
- * @param tracked - 対象
- * @param addressType - 住所の型
- * @returns 整えた結果
- */
-export const applyAddressFormatting = (
+const applyAddressFormatting = (
   tracked: TrackedText,
   addressType: AddressType,
 ): TrackedText => {
@@ -759,11 +758,11 @@ export const normalizeBasicNormalized = (
   const addressType = detectAddressType(address.text);
   address = normalizeSpaces(applyAddressFormatting(address, addressType));
   if (parenthesis >= 0) {
-    address = concatTracked(
+    address = joinTracked([
       trimSpace(address),
       insertedText(' '),
       sliceTracked(tracked, parenthesis),
-    );
+    ]);
   }
   return {
     text: trimSpace(addSpacesAroundPunctuation(address)),

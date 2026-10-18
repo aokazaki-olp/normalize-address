@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { applyCharStyle } from '@arihirookazaki/normalize-core';
+import { CharStyle } from '@arihirookazaki/normalize-core';
 
 import { prepareOptions } from '../../src/domain/options.ts';
 import type { AddressNormalizerOptions } from '../../src/ports/addressResult.ts';
@@ -12,7 +12,7 @@ const styled = (
   options: AddressNormalizerOptions | undefined,
 ): string => {
   const style = prepareOptions(options).styles[field];
-  return style === undefined ? text : applyCharStyle(text, style);
+  return style === undefined ? text : CharStyle.apply(text, style);
 };
 
 describe('prepareOptions', () => {

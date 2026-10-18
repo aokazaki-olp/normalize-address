@@ -34,7 +34,7 @@ import {
 /** 建物部の始まりの位置から後ろのテキストと、そこから取り出した建物部 */
 export interface BuildingSide {
   /** 建物部の始まりの位置より前のテキスト（無ければ ''） */
-  readonly before?: string;
+  readonly before: string;
   readonly after: string;
   readonly building: string;
 }
@@ -87,7 +87,7 @@ const continuesAfterBar = (after: string, building: string): boolean =>
  * @param before - 切れ目より前のテキスト。`N番地`・`N番` で終わるなら、`第N`（`第N号`）を枝番とみなす
  * @returns 住所の続きだけなら true
  */
-export const isAddressOnly = (building: string, before = ''): boolean =>
+export const isAddressOnly = (building: string, before: string): boolean =>
   ADDRESS_LIST.test(building) ||
   ADDRESS_MODIFIER.test(building) ||
   (LOT_END.test(before) && DAI_BRANCH.test(building));
@@ -120,36 +120,32 @@ const keepsWholeNumber = (
   (LEADING_SPACE.test(after) && !continuesWholeNumber(context, tail, building));
 
 /**
- * 建物部の始まりの位置で切った前半と後半を受け入れるかを判定する（docs/design.md の手順4の受け入れ条件）
+ * 建物部の始まりの位置で切った前半と後半の判定の結果（docs/design.md の手順4・8）
  *
- * @param context - 全体の結果と、その住所の末尾
- * @param front - 建物部の始まりの位置までの前半の解析の結果
- * @param side - 建物部の始まりの位置から後ろのテキストと、そこから取り出した建物部
- * @returns 受け入れるなら true
+ * - accepted：受け入れ条件をすべて満たし、後半は住所の続きだけではない（そこで切る）
+ * - addressOnly：後半が住所の続きだけで、ほかの受け入れ条件は満たす（切らない。候補が尽きたときに none にする）
+ * - rejected：受け入れ条件のどれかを満たさない
  */
-export const isAddressFront = (
-  context: WholeContext,
-  front: ParsedAddress,
-  side: BuildingSide,
-): boolean =>
-  acceptsFront(context, front, side) &&
-  !isAddressOnly(side.building, side.before);
+export type FrontVerdict = 'accepted' | 'addressOnly' | 'rejected';
 
 /**
- * 建物部の始まりの位置で切った後半が住所の続きだけで、そのほかの受け入れ条件は満たすかを判定する（docs/design.md の手順4・8）
+ * 建物部の始まりの位置で切った前半と後半を判定する（docs/design.md の手順4の受け入れ条件と手順8）
  *
  * @param context - 全体の結果と、その住所の末尾
  * @param front - 建物部の始まりの位置までの前半の解析の結果
  * @param side - 建物部の始まりの位置から後ろのテキストと、そこから取り出した建物部
- * @returns 後半が住所の続きだけで、ほかの受け入れ条件を満たすなら true
+ * @returns 判定の結果
  */
-export const isAddressOnlyAfterFront = (
+export const judgeFront = (
   context: WholeContext,
   front: ParsedAddress,
   side: BuildingSide,
-): boolean =>
-  isAddressOnly(side.building, side.before) &&
-  acceptsFront(context, front, side);
+): FrontVerdict => {
+  if (!acceptsFront(context, front, side)) {
+    return 'rejected';
+  }
+  return isAddressOnly(side.building, side.before) ? 'addressOnly' : 'accepted';
+};
 
 const acceptsFront = (
   context: WholeContext,

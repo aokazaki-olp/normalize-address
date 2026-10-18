@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
-  isAddressFront,
   isAddressOnly,
   isSameAddress,
   isSameAddressWithoutLastDigit,
+  judgeFront,
   movesFloorDigit,
 } from '../../../src/domain/split/acceptance.ts';
 import { wholeContext } from '../../../src/domain/split/addressTail.ts';
@@ -156,14 +156,14 @@ describe('isSameAddress', () => {
   for (const [name, front, tail, expected] of cases) {
     it(name, () => {
       assert.equal(
-        isSameAddress({ ...wholeContext(whole), tail }, parsed(front)),
+        isSameAddress({ ...wholeContext(whole, ''), tail }, parsed(front)),
         expected,
       );
     });
   }
 });
 
-describe('isAddressFront', () => {
+describe('judgeFront', () => {
   const area = {
     prefecture: '北海道',
     city: '札幌市中央区',
@@ -189,10 +189,11 @@ describe('isAddressFront', () => {
       for (const [name, whole, front, after, expected] of cases) {
         it(name, () => {
           assert.equal(
-            isAddressFront(wholeContext(whole), parsed(front), {
+            judgeFront(wholeContext(whole, ''), parsed(front), {
+              before: '',
               after,
               building: toBuilding(after),
-            }),
+            }) === 'accepted',
             expected,
           );
         });
@@ -507,6 +508,54 @@ describe('isAddressFront', () => {
       true,
     ],
   ]);
+
+  describe('判定の結果', () => {
+    const context = wholeContext(level3, '');
+    const front = parsed({ ...area, unmatched: '10' });
+    const cases: [string, ParsedAddress, string, string, string][] = [
+      ['受け入れ条件を満たせば accepted', front, '', ' ビル', 'accepted'],
+      [
+        '後半が住所の続きだけなら addressOnly',
+        front,
+        '',
+        '、5番地',
+        'addressOnly',
+      ],
+      [
+        '切れ目より前が N番地 で終わるなら、第N は addressOnly',
+        front,
+        '架空町10番地',
+        '第3',
+        'addressOnly',
+      ],
+      [
+        '切れ目より前が N番地 で終わらなければ、第N は accepted',
+        front,
+        '架空町10',
+        '第3',
+        'accepted',
+      ],
+      [
+        '受け入れ条件を満たさなければ、後半が住所の続きだけでも rejected',
+        parsed({ ...area, town: '南四条西三丁目', unmatched: '10' }),
+        '',
+        '、5番地',
+        'rejected',
+      ],
+    ];
+    for (const [name, frontCase, before, after, expected] of cases) {
+      it(name, () => {
+        assert.equal(
+          judgeFront(context, frontCase, {
+            before,
+            after,
+            building: toBuilding(after),
+          }),
+          expected,
+        );
+      });
+    }
+  });
 });
 
 describe('isAddressOnly', () => {
@@ -543,7 +592,7 @@ describe('isAddressOnly', () => {
   ];
   for (const [name, building, expected] of cases) {
     it(name, () => {
-      assert.equal(isAddressOnly(building), expected);
+      assert.equal(isAddressOnly(building, ''), expected);
     });
   }
 
@@ -554,8 +603,8 @@ describe('isAddressOnly', () => {
     assert.equal(isAddressOnly('第3倉庫', '架空町12番地'), false);
   });
   it('読点で始まる番号の列挙は、番・地が無くても住所の続き', () => {
-    assert.equal(isAddressOnly('、8-30'), true);
-    assert.equal(isAddressOnly('、8-30 カビル'), false);
+    assert.equal(isAddressOnly('、8-30', ''), true);
+    assert.equal(isAddressOnly('、8-30 カビル', ''), false);
   });
 });
 
@@ -573,13 +622,13 @@ describe('isAddressOnly（長い入力）', () => {
   for (const input of inputs) {
     it(`${String(input.length)}字でも短い時間で返す（${input.slice(0, 4)}…）`, () => {
       const start = performance.now();
-      assert.equal(isAddressOnly(input), false);
+      assert.equal(isAddressOnly(input, ''), false);
       assert.ok(performance.now() - start < 100);
     });
   }
   it('長い列挙が住所の続きなら true を短い時間で返す', () => {
     const start = performance.now();
-    assert.equal(isAddressOnly('、1番地'.repeat(2000)), true);
+    assert.equal(isAddressOnly('、1番地'.repeat(2000), ''), true);
     assert.ok(performance.now() - start < 100);
   });
 });
@@ -588,9 +637,11 @@ describe('movesFloorDigit', () => {
   const area = { prefecture: '東京都', city: '渋谷区', town: '道玄坂一丁目' };
   const level3 = wholeContext(
     parsed({ ...area, unmatched: '2-311階', level: 3 }),
+    '',
   );
   const level8 = wholeContext(
     parsed({ ...area, block: '2-31', unmatched: '階', level: 8 }),
+    '',
   );
   const cases: [string, typeof level3, string, string, boolean][] = [
     ['level 3 で階だけ', level3, '坂2-311', '階', true],
@@ -610,6 +661,7 @@ describe('movesFloorDigit', () => {
   it('最後の1桁を除いた前半の末尾が全体の末尾と合えば同じ住所', () => {
     const context = wholeContext(
       parsed({ ...area, unmatched: '311階', level: 3 }),
+      '',
     );
     assert.equal(
       isSameAddressWithoutLastDigit(
@@ -630,6 +682,7 @@ describe('movesFloorDigit', () => {
   it('最後の1桁を除いた前半が level 8 でなければ回さない', () => {
     const context = wholeContext(
       parsed({ ...area, unmatched: '311階', level: 3 }),
+      '',
     );
     assert.equal(
       isSameAddressWithoutLastDigit(

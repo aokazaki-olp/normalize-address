@@ -157,9 +157,28 @@ describe('元の位置の追跡', () => {
     assert.deepEqual(result.origins, [0, -1, 1, 2, 3, -1, 4, -1, 5, 6]);
   });
 
+  it('addSpaceAfterNumberBeforeJapanese は挿入した空白を -1 にし、住所の続きの前で止める', () => {
+    const result = addSpaceAfterNumberBeforeJapanese(
+      trackText('1あ2い3丁目4う'),
+    );
+    assert.equal(result.text, '1 あ2 い3丁目4う');
+    assert.deepEqual(result.origins, [0, -1, 1, 2, -1, 3, 4, 5, 6, 7, 8]);
+  });
+
   it('番号の後ろの建物名は元の位置を保つ', () => {
     const result = addressNumbersToHyphen(trackText('1番2号ビル'));
     assert.equal(result.text, '1-2 ビル');
     assert.deepEqual(result.origins, [0, -1, 2, -1, 4, 5]);
+  });
+});
+
+describe('長い入力', () => {
+  it('addSpaceAfterNumberBeforeJapanese は数万字でも短い時間で返す', () => {
+    const start = performance.now();
+    const result = addSpaceAfterNumberBeforeJapanese(
+      trackText('1あ'.repeat(16000)),
+    );
+    assert.ok(performance.now() - start < 500);
+    assert.equal(result.text, '1 あ'.repeat(16000));
   });
 });

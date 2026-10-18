@@ -71,31 +71,31 @@ const TS_RESTRICTED_SYNTAX = [
 const LAYERS = ['application', 'domain', 'ports', 'adapters'];
 const layerFiles = (layer) => [`src/${layer}/**/*.ts`, `src/${layer}/**/*.mts`];
 
-// docs/design.md の「レイヤーと依存の向き」の表
+// docs/design.md の「レイヤーと依存の向き」の表。external は import してよい外部のパッケージ（'all' なら制限なし）
 const LAYER_TABLE = [
   {
     name: 'index.ts',
     files: ['src/index.ts'],
     allowed: ['application', 'adapters', 'ports'],
-    external: 'core-types',
+    external: { packages: [CORE], typesOnly: true },
   },
   {
     name: 'application',
     files: layerFiles('application'),
     allowed: ['domain', 'ports'],
-    external: 'core',
+    external: { packages: [CORE], typesOnly: false },
   },
   {
     name: 'domain',
     files: layerFiles('domain'),
     allowed: ['ports'],
-    external: 'core',
+    external: { packages: [CORE], typesOnly: false },
   },
   {
     name: 'ports',
     files: layerFiles('ports'),
     allowed: [],
-    external: 'core-types',
+    external: { packages: [CORE], typesOnly: true },
   },
   {
     name: 'adapters',
@@ -112,22 +112,28 @@ const layerBlock = ({ name, files, allowed, external }) => {
   const layerMessage = `${name} から import してよい層は ${allowed.join('・') || 'なし'}（docs/design.md）`;
   const restricted = [
     {
-      regex: `(^|/)(${forbidden.join('|')})/|^(\\.\\./)+index\\.m?ts$`,
+      regex: [
+        ...forbidden.map((layer) => `(^|/)${layer}/`),
+        '^(\\.\\./)+index\\.m?ts$',
+      ].join('|'),
       message: layerMessage,
     },
   ];
   if (external !== 'all') {
+    const externalNames = external.packages.join('・');
     restricted.push({
-      regex: `^(?!\\.{1,2}/|${CORE}$)`,
-      message: `${name} から import してよい外部は ${CORE} だけ（docs/design.md）`,
+      regex: `^(?!\\.{1,2}/${external.packages.map((packageName) => `|${packageName}$`).join('')})`,
+      message: `${name} から import してよい外部は ${externalNames === '' ? 'なし' : `${externalNames} だけ`}（docs/design.md）`,
     });
   }
-  if (external === 'core-types') {
-    restricted.push({
-      regex: `^${CORE}$`,
-      allowTypeImports: true,
-      message: `${name} から ${CORE} は型だけを import する（docs/design.md）`,
-    });
+  if (external !== 'all' && external.typesOnly) {
+    for (const packageName of external.packages) {
+      restricted.push({
+        regex: `^${packageName}$`,
+        allowTypeImports: true,
+        message: `${name} から ${packageName} は型だけを import する（docs/design.md）`,
+      });
+    }
   }
   return {
     files,

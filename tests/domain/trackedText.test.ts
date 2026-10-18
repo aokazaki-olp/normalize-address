@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
-  concatTracked,
   insertTracked,
   insertedText,
+  joinTracked,
   replaceTracked,
   sliceTracked,
   trackText,
@@ -47,22 +47,22 @@ describe('sliceTracked', () => {
   });
 });
 
-describe('concatTracked', () => {
+describe('joinTracked', () => {
   it('文字列と位置をつなぐ', () => {
     const tracked = trackText('abc');
     assert.deepEqual(
       plain(
-        concatTracked(
+        joinTracked([
           sliceTracked(tracked, 0, 1),
           insertedText('-'),
           sliceTracked(tracked, 2),
-        ),
+        ]),
       ),
       ['a-c', [0, -1, 2]],
     );
   });
   it('何も渡さなければ空', () => {
-    assert.deepEqual(plain(concatTracked()), ['', []]);
+    assert.deepEqual(plain(joinTracked([])), ['', []]);
   });
 });
 

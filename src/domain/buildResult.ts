@@ -4,11 +4,7 @@
  * @description 解析の結果と切れ目の探索の結果から、出力を組み立てる
  */
 
-import {
-  applyCharStyle,
-  guardedNfkc,
-  type CharStyle,
-} from '@arihirookazaki/normalize-core';
+import { CharStyle, guardedNfkc } from '@arihirookazaki/normalize-core';
 import type { ParsedAddress } from '../ports/addressParser.ts';
 import type { AddressResult, StyledField } from '../ports/addressResult.ts';
 import type { PreparedOptions } from './options.ts';
@@ -26,7 +22,7 @@ export const styleField = (
   style: CharStyle | undefined,
 ): string => {
   const normalized = guardedNfkc(text);
-  return style === undefined ? normalized : applyCharStyle(normalized, style);
+  return style === undefined ? normalized : CharStyle.apply(normalized, style);
 };
 
 /**

@@ -5,15 +5,18 @@
  */
 
 import { guardedNfkc } from '@arihirookazaki/normalize-core';
+import { assertNever } from '../domain/assertNever.ts';
 import { buildResult } from '../domain/buildResult.ts';
 import { prepareOptions } from '../domain/options.ts';
-import { prefectureCandidates } from '../domain/prefectureCandidates.ts';
 import {
-  isAddressFront,
+  bestCandidate,
+  prefectureCandidates,
+} from '../domain/prefectureCandidates.ts';
+import {
   isAddressOnly,
-  isAddressOnlyAfterFront,
   isSameAddress,
   isSameAddressWithoutLastDigit,
+  judgeFront,
   movesFloorDigit,
 } from '../domain/split/acceptance.ts';
 import {
@@ -36,11 +39,6 @@ import type { AddressParser, ParsedAddress } from '../ports/addressParser.ts';
 import type { AddressNormalizer } from '../ports/addressNormalizer.ts';
 import type { AddressNormalizerOptions } from '../ports/addressResult.ts';
 
-const parseScore = (parsed: ParsedAddress): number =>
-  parsed.level * 1000 +
-  (parsed.town ?? '').length * 10 -
-  parsed.unmatched.length;
-
 const parseEach = (
   parser: AddressParser,
   texts: readonly string[],
@@ -53,21 +51,15 @@ const parseWhole = async (
   parser: AddressParser,
   text: string,
 ): Promise<{ text: string; whole: ParsedAddress }> => {
+  const candidates = prefectureCandidates(text);
+  if (candidates.length === 0) {
+    return { text, whole: await parser.parse(text) };
+  }
   const tried = await parseEach(
     parser,
-    prefectureCandidates(text).map(
-      (prefecture) => `${prefecture}${text.trimStart()}`,
-    ),
+    candidates.map((prefecture) => `${prefecture}${text.trimStart()}`),
   );
-  tried.sort((a, b) => parseScore(b.whole) - parseScore(a.whole));
-  const [best, second] = tried;
-  if (
-    best !== undefined &&
-    (second === undefined || parseScore(best.whole) > parseScore(second.whole))
-  ) {
-    return best;
-  }
-  return { text, whole: await parser.parse(text) };
+  return bestCandidate(tried) ?? { text, whole: await parser.parse(text) };
 };
 
 const findAtBuildingStart = async (
@@ -84,10 +76,18 @@ const findAtBuildingStart = async (
     }
     const front = await parser.parse(text.slice(0, start));
     const side = { before: text.slice(0, start), after, building };
-    if (isAddressFront(context, front, side)) {
-      return { found: foundAtBuildingStart(front, building), addressOnly };
+    const verdict = judgeFront(context, front, side);
+    switch (verdict) {
+      case 'accepted':
+        return { found: foundAtBuildingStart(front, building), addressOnly };
+      case 'addressOnly':
+        addressOnly = true;
+        break;
+      case 'rejected':
+        break;
+      default:
+        return assertNever(verdict);
     }
-    addressOnly ||= isAddressOnlyAfterFront(context, front, side);
   }
   return { addressOnly };
 };

@@ -6,8 +6,8 @@ import {
   toTextStart,
 } from '../../../src/domain/split/buildingStart.ts';
 import {
-  concatTracked,
   insertedText,
+  joinTracked,
   trackText,
 } from '../../../src/domain/trackedText.ts';
 
@@ -76,11 +76,11 @@ describe('toTextStart', () => {
   it('空白の後ろが挿入した字だけなら使わない', () => {
     const text = '坂1ビル';
     const prepared = trackText(text);
-    const formatted = concatTracked(
+    const formatted = joinTracked([
       trackText('坂1'),
       insertedText(' '),
       insertedText('-'),
-    );
+    ]);
     assert.equal(toTextStart(text, prepared, formatted, 2), undefined);
   });
 });
