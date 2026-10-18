@@ -5,7 +5,6 @@
  */
 
 import {
-  concatTracked,
   insertTracked,
   insertedText,
   joinTracked,
@@ -468,11 +467,11 @@ const replaceBanGoEnd = (tracked: TrackedText): TrackedText => {
   ) {
     return tracked;
   }
-  return concatTracked(
+  return joinTracked([
     sliceTracked(tracked, 0, ban),
     insertedText('-'),
     sliceTracked(tracked, ban + 1, text.length - 1),
-  );
+  ]);
 };
 
 const processBanchi = (tracked: TrackedText): TrackedText => {
@@ -766,11 +765,11 @@ export const normalizeBasicNormalized = (
   const addressType = detectAddressType(address.text);
   address = normalizeSpaces(applyAddressFormatting(address, addressType));
   if (parenthesis >= 0) {
-    address = concatTracked(
+    address = joinTracked([
       trimSpace(address),
       insertedText(' '),
       sliceTracked(tracked, parenthesis),
-    );
+    ]);
   }
   return {
     text: trimSpace(addSpacesAroundPunctuation(address)),
