@@ -199,20 +199,7 @@ export const FLOOR_MARK_ONLY = new RegExp(`^(?:階|F${F_NOT_WORD})$`, 'u');
 // 0 だけの階は無いので、最後の1字が 0 なら1桁を階に回さない
 export const FLOOR_DIGIT_END = /[0-9][1-9]$/u;
 export const DIGIT_RUNS = /[0-9]+/gu;
-const NUMBER_CHARS = `0-9${KANJI_NUMERALS}`;
-// 元のテキストの番号（算用数字か漢数字）と、そのあとのつなぎ（数字と空白以外の4字まで）
-export const ORIGINAL_NUMBER = new RegExp(
-  `(?<![${NUMBER_CHARS}])([${NUMBER_CHARS}]+)`,
-  'uy',
-);
-export const ORIGINAL_NUMBER_START = new RegExp(
-  `(?<![${NUMBER_CHARS}])[${NUMBER_CHARS}]`,
-  'gu',
-);
-export const ORIGINAL_JOINER_AT = new RegExp(
-  `([^${NUMBER_CHARS}\\s]{1,4})`,
-  'uy',
-);
+export const ORIGINAL_NUMBER_CHARS = `0-9${KANJI_NUMERALS}`;
 // NJA は other の空白を消すので、番号と空白のあとの階の数字（`M 3F`）は元のテキストで分ける
 export const SPACED_FLOOR = new RegExp(
   `(?<![0-9])([0-9]+)\\s+([0-9]+)(?=階|F${F_NOT_WORD})`,

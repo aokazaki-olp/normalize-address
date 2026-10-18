@@ -14,9 +14,7 @@ import {
   KANJI_DIGIT_VALUES,
   KANJI_UNIT_VALUES,
   LOT_JOINER,
-  ORIGINAL_JOINER_AT,
-  ORIGINAL_NUMBER,
-  ORIGINAL_NUMBER_START,
+  ORIGINAL_NUMBER_CHARS,
   SPACED_FLOOR,
   LEADING_SUFFIX,
   LEADING_TAIL_NUMBER,
@@ -24,6 +22,20 @@ import {
   THIRD_NUMBER_MAX_DIGITS,
   TRAILING_SUFFIX,
 } from './rules.ts';
+
+// sticky の正規表現は lastIndex を書き換えて使うので、共有せずこのファイルの中に置く
+const ORIGINAL_NUMBER = new RegExp(
+  `(?<![${ORIGINAL_NUMBER_CHARS}])([${ORIGINAL_NUMBER_CHARS}]+)`,
+  'uy',
+);
+const ORIGINAL_JOINER_AT = new RegExp(
+  `([^${ORIGINAL_NUMBER_CHARS}\\s]{1,4})`,
+  'uy',
+);
+const ORIGINAL_NUMBER_START = new RegExp(
+  `(?<![${ORIGINAL_NUMBER_CHARS}])[${ORIGINAL_NUMBER_CHARS}]`,
+  'gu',
+);
 
 const leadingTailNumber = (text: string): string =>
   LEADING_TAIL_NUMBER.exec(text)?.[0] ?? '';

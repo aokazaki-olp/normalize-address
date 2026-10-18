@@ -271,6 +271,8 @@ src/
 
 `acceptance.ts` は `rules.ts`・`addressTail.ts` を、`addressTail.ts`・`building.ts`・`candidates.ts`・`buildingStart.ts`・`spaces.ts`・`rewrites.ts` は `rules.ts` を import する（`buildingStart.ts` は split/ の外の `abrgNormalize.ts`・`trackedText.ts` も）。循環させない。
 
+`rules.ts` の正規表現は、`lastIndex` を書き換えて使う sticky（`y`）のものを除く。sticky の正規表現は共有すると使う側どうしで状態が漏れるので、使う `addressTail.ts` の中に非公開で置き、`rules.ts` からは字の集合（`ORIGINAL_NUMBER_CHARS`）だけを渡す。
+
 ## 依存
 
 - `@geolonia/normalize-japanese-addresses` は `3.1.3` に固定する（2026-09-27 時点で npm の最新）
