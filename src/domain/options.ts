@@ -4,11 +4,7 @@
  * @description AddressNormalizer のオプションの検査と準備
  */
 
-import {
-  applyCharStyle,
-  mergeCharStyle,
-  type CharStyle,
-} from '@arihirookazaki/normalize-core';
+import { CharStyle } from '@arihirookazaki/normalize-core';
 import type {
   AddressNormalizerOptions,
   AddressStyle,
@@ -49,52 +45,10 @@ const toFlag = (name: string, value: unknown): boolean => {
   return value === true;
 };
 
-const checkFields = (fields: AddressStyle['fields']): void => {
-  if (fields === undefined) {
-    return;
-  }
-  if (!isObject(fields)) {
-    throw new TypeError('style.fields には object を指定してください');
-  }
-  for (const key of Object.keys(fields)) {
-    if (!STYLED_FIELDS.some((field) => field === key)) {
-      throw new TypeError(
-        `style.fields のキーには ${STYLED_FIELDS.join('・')} を指定してください: ${key}`,
-      );
-    }
-  }
-  for (const field of STYLED_FIELDS) {
-    const value = fields[field];
-    if (value !== undefined && value !== false && !isObject(value)) {
-      throw new TypeError(
-        `style.fields.${field} には object または false を指定してください`,
-      );
-    }
-  }
-};
-
 const toStyles = (
   style: AddressStyle | undefined,
 ): Readonly<Record<StyledField, CharStyle | undefined>> => {
-  if (style !== undefined && !isObject(style)) {
-    throw new TypeError('style には object を指定してください');
-  }
-  const base = style?.default;
-  if (base !== undefined && !isObject(base)) {
-    throw new TypeError('style.default には object を指定してください');
-  }
-  const fields = style?.fields;
-  checkFields(fields);
-  const resolve = (field: StyledField): CharStyle | undefined => {
-    const fieldStyle = fields?.[field];
-    if (fieldStyle === false) {
-      return undefined;
-    }
-    const merged = mergeCharStyle(base ?? {}, fieldStyle ?? {});
-    // normalize-core が字形の指定の検査を単独の関数として公開していないため、空文字に当てて検査だけを行う
-    applyCharStyle('', merged);
-    return merged;
-  };
+  const resolve = CharStyle.prepareFields(STYLED_FIELDS, style);
   return {
     prefecture: resolve('prefecture'),
     city: resolve('city'),

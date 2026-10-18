@@ -66,7 +66,7 @@ export interface AddressPoint {
 - `codes.lgCode` は市区町村の全国地方公共団体コード（6桁の文字列）で、市区町村まで読めなければ `null`（都道府県のコードは入らない）。JAv2 の市区町村コードは数値で先頭のゼロが落ちているので、6桁にそろえる（札幌市中央区 `11011` → `011011`）。`codes.machiazaId` は町字 ID（7桁の文字列）
 - `nja` は NJA の結果の写し（`structuredClone`）を入れる。NJA の結果の中には NJA のキャッシュのオブジェクト（`metadata.city` など）があり、そのまま渡すと利用者の書き換えが同じ読み込み単位の以後の結果に波及するため
 - `nja` の型は `Readonly<Record<string, unknown>>` のままにする。NJA の版によって形が変わりうるので、スキーマを型に固定しない（規約 §2.7 の「スキーマが本当に存在しない場合は `unknown` のまま」）
-- 公開する値は `AddressNormalizer`（モジュールオブジェクト、規約 §2.1）と `AddressNormalizationError` だけ。型は `AddressNormalizer`・`AddressNormalizerOptions`・`AddressResult`・`AddressStyle`・`AddressLevel`・`AddressPoint` と、normalize-core の `CharStyle`・`CharTarget`・`WidthMode` を再公開する。関数（`applyCharStyle` など）は再公開しない。`SplitStatus` は利用者が名前で使う必要が無いので公開の型に入れない（`AddressResult['split']` で取れる）
+- 公開する値は `AddressNormalizer`（モジュールオブジェクト、規約 §2.1）と `AddressNormalizationError` だけ。型は `AddressNormalizer`・`AddressNormalizerOptions`・`AddressResult`・`AddressStyle`・`AddressLevel`・`AddressPoint` と、normalize-core の `CharStyle`・`CharTarget`・`WidthMode` を再公開する。`CharStyle` は型だけを再公開し、同じ名前の値（関数をまとめた `CharStyle.apply` など）は再公開しない。`SplitStatus` は利用者が名前で使う必要が無いので公開の型に入れない（`AddressResult['split']` で取れる）
 - `create` は options を1回だけ検査・準備する（字形の指定の検査と、`default` と項目ごとの指定のマージ）。options が検査を満たさなければ `create` が `TypeError` を投げ、`normalize` は呼ぶ前から使えない。準備したものは写しなので、`create` のあとで options を書き換えても正規化器には効かない
 - 公開の interface の関数はプロパティの形で宣言する（利用者の lint の unbound-method に当たらないように。実装は this を使わないので、取り出して渡してよい）。非公開の `AddressParser.parse` も同じ形にそろえる
 - 値の `AddressNormalizer` は ports の `AddressNormalizerFactory`（`create` を持つ interface。TSDoc はそのメンバーに付ける）で型を注釈する。短縮記法の `{ create }` に付けた TSDoc は tsc が出力する `dist/index.d.ts` に届かないため。`AddressNormalizerFactory` は利用者が名前で使う必要が無いので公開の型に入れない（`typeof AddressNormalizer` で取れる）
@@ -180,13 +180,13 @@ type StyledField =
   'prefecture' | 'city' | 'town' | 'block' | 'building' | 'unmatched';
 ```
 
-- `CharStyle` と、その当て方（`applyCharStyle`・`mergeCharStyle`）は `@arihirookazaki/normalize-core` のもの
+- `CharStyle` と、その当て方（`CharStyle.apply`・`CharStyle.merge`）は `@arihirookazaki/normalize-core` のもの。`AddressStyle` は normalize-core の `FieldStyle<StyledField>` と同じ形で、公開の型の TSDoc を付けるために自分の interface として持つ
 - 各項目には、まずガード付き NFKC をかけ（マスターの全角 `相生１号` などを半角にそろえる）、そのあと `default` に項目ごとの指定をマージしたものを当てる。項目ごとの指定が `false` なら、字形の指定は当てない（ガード付き NFKC だけ）
 - 既定（`style` を省略したとき、またはクラスの指定を省略したとき）は、ASCII の95字（digit・alpha・symbol・space）をすべて半角にする。grep や旧来のテキストエディタで扱いやすくするため
 - ASCII に似た ASCII 以外の字（`−` U+2212、`‐` U+2010、`―` U+2015、`〜` U+301C、`’` U+2019 など）は、既定では置き換えない。ガード付き NFKC でも残る。そろえたい利用者は `chars` で指定する。このうち `−` `–` `—` `〜` は Shift_JIS（CP932）の表に無い
 - `input` には何もかけない。`nja` にもかけない
 - 字形の指定は出力の直前にだけ当てる。処理の途中（手順1〜8）は当てない
-- 検査とマージは `create` で1回だけ行う。`style`・`default`・`fields` は object、`fields` のキーは上の6項目、値は `CharStyle` か `false`。マージした指定は項目ごとに normalize-core の検査（`applyCharStyle` と同じもの）にかける
+- 検査とマージは `create` で1回だけ行う。`style`・`default`・`fields` は object、`fields` のキーは上の6項目、値は `CharStyle` か `false`。検査とマージは normalize-core の `CharStyle.prepareFields` で行い、マージした指定は項目ごとに `CharStyle.apply` と同じ検査にかかる
 - 未知のキーを検査するのは `fields` のキーだけで、options や `style` のほかのキーは検査しない（TypeScript の型検査で防げる。実行時の検査をそろえるには normalize-core も変える必要があるので、規約 §5.4 の例外とする）
 
 ## 失敗の扱い
