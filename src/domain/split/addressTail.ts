@@ -23,7 +23,7 @@ import {
   TRAILING_SUFFIX,
 } from './rules.ts';
 
-// sticky の正規表現は lastIndex を書き換えて使うので、共有せずこのファイルの中に置く
+// 元のテキストの番号を読む正規表現の組。sticky のものは lastIndex を書き換えて使うので、共有せずこのファイルの中に置く
 const ORIGINAL_NUMBER = new RegExp(
   `(?<![${ORIGINAL_NUMBER_CHARS}])([${ORIGINAL_NUMBER_CHARS}]+)`,
   'uy',

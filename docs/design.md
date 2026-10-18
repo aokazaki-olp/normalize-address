@@ -69,7 +69,7 @@ export interface AddressPoint {
 - 公開する値は `AddressNormalizer`（モジュールオブジェクト、規約 §2.1）と `AddressNormalizationError` だけ。型は `AddressNormalizer`・`AddressNormalizerOptions`・`AddressResult`・`AddressStyle`・`AddressLevel`・`AddressPoint` と、normalize-core の `CharStyle`・`CharTarget`・`WidthMode` を再公開する。`CharStyle` は型だけを再公開し、同じ名前の値（関数をまとめた `CharStyle.apply` など）は再公開しない。`SplitStatus` は利用者が名前で使う必要が無いので公開の型に入れない（`AddressResult['split']` で取れる）
 - `create` は options を1回だけ検査・準備する（字形の指定の検査と、`default` と項目ごとの指定のマージ）。options が検査を満たさなければ `create` が `TypeError` を投げ、`normalize` は呼ぶ前から使えない。準備したものは写しなので、`create` のあとで options を書き換えても正規化器には効かない
 - 公開の interface の関数はプロパティの形で宣言する（利用者の lint の unbound-method に当たらないように。実装は this を使わないので、取り出して渡してよい）。非公開の `AddressParser.parse` も同じ形にそろえる
-- 値の `AddressNormalizer` は ports の `AddressNormalizerFactory`（`create` を持つ interface。TSDoc はそのメンバーに付ける）で型を注釈する。短縮記法の `{ create }` に付けた TSDoc は tsc が出力する `dist/index.d.ts` に届かないため。`AddressNormalizerFactory` は利用者が名前で使う必要が無いので公開の型に入れない（`typeof AddressNormalizer` で取れる）
+- 値の `AddressNormalizer` は ports の `AddressNormalizerFactory`（`create` を持つ interface。TSDoc はそのメンバーに付ける）で型を注釈する。TSDoc を `create` の宣言（`const create = …`）に付けると、tsc が出力する `dist/index.d.ts` に届かないため（オブジェクトのプロパティに直接付ければ届く。normalize-core の `CharStyle` はその形。正規化器では、契約を interface にする規約 §4.4 に合わせて Factory の interface で注釈する）。`AddressNormalizerFactory` は利用者が名前で使う必要が無いので公開の型に入れない（`typeof AddressNormalizer` で取れる）
 - NJA の設定・取得処理の差し替え（下記「失敗の扱い」）・住所データのキャッシュはモジュールの読み込み単位に1つ（worker_threads の worker ごとに別）で、`create` を何回呼んでもすべての正規化器で共有される。取得先（エンドポイント）などは `create` の引数に入れない
 - `create` の入力の誤り（options が object でない、`nja`・`codes` が boolean でない、字形の指定が検査を満たさない）と、`normalize` の入力の誤り（引数が文字列でない）は `TypeError`。それ以外で処理を終えられなかったもの（住所データの取得の失敗、NJA の処理の失敗）は `normalize` が `AddressNormalizationError` を投げる。原因は `url`・`status`・`cause` を見る（下記「失敗の扱い」）
 
@@ -181,7 +181,7 @@ type StyledField =
   'prefecture' | 'city' | 'town' | 'block' | 'building' | 'unmatched';
 ```
 
-- `CharStyle` と、その当て方（`CharStyle.apply`・`CharStyle.merge`）は `@arihirookazaki/normalize-core` のもの。`AddressStyle` は normalize-core の `FieldStyle<StyledField>` と同じ形で、公開の型の TSDoc を付けるために自分の interface として持つ
+- `CharStyle` と、その当て方（`CharStyle.apply`）と項目ごとの準備（`CharStyle.prepareFields`）は `@arihirookazaki/normalize-core` のもの。`AddressStyle` は normalize-core の `FieldStyle<StyledField>` と同じ形で、公開の型の TSDoc を付けるために自分の interface として持つ
 - 各項目には、まずガード付き NFKC をかけ（マスターの全角 `相生１号` などを半角にそろえる）、そのあと `default` に項目ごとの指定をマージしたものを当てる。項目ごとの指定が `false` なら、字形の指定は当てない（ガード付き NFKC だけ）
 - 既定（`style` を省略したとき、またはクラスの指定を省略したとき）は、ASCII の95字（digit・alpha・symbol・space）をすべて半角にする。grep や旧来のテキストエディタで扱いやすくするため
 - ASCII に似た ASCII 以外の字（`−` U+2212、`‐` U+2010、`―` U+2015、`〜` U+301C、`’` U+2019 など）は、既定では置き換えない。ガード付き NFKC でも残る。そろえたい利用者は `chars` で指定する。このうち `−` `–` `—` `〜` は Shift_JIS（CP932）の表に無い
@@ -271,7 +271,7 @@ src/
 
 `acceptance.ts` は `rules.ts`・`addressTail.ts` を、`addressTail.ts`・`building.ts`・`candidates.ts`・`buildingStart.ts`・`spaces.ts`・`rewrites.ts` は `rules.ts` を import する（`buildingStart.ts` は split/ の外の `abrgNormalize.ts`・`trackedText.ts` も）。循環させない。
 
-`rules.ts` の正規表現は、`lastIndex` を書き換えて使う sticky（`y`）のものを除く。sticky の正規表現は共有すると使う側どうしで状態が漏れるので、使う `addressTail.ts` の中に非公開で置き、`rules.ts` からは字の集合（`ORIGINAL_NUMBER_CHARS`）だけを渡す。
+`rules.ts` の正規表現は、元のテキストの番号を読む3つ（`ORIGINAL_NUMBER`・`ORIGINAL_JOINER_AT`・`ORIGINAL_NUMBER_START`）を除く。前の2つは `lastIndex` を書き換えて使う sticky（`y`）で、共有すると使う側どうしで状態が漏れるので、使う `addressTail.ts` の中に非公開で置く。`ORIGINAL_NUMBER_START`（`g`、matchAll で使うので状態は漏れない）も、同じ字の集合から作る組なので一緒に置く。`rules.ts` からは字の集合（`ORIGINAL_NUMBER_CHARS`）だけを渡す。
 
 ## 依存
 
