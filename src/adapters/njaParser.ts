@@ -53,8 +53,8 @@ export const toParsedAddress = (result: NormalizeResult): ParsedAddress => {
       result.point === undefined
         ? null
         : {
-            lat: result.point.lat,
-            lng: result.point.lng,
+            latitude: result.point.lat,
+            longitude: result.point.lng,
             level: result.point.level,
           },
     lgCode:

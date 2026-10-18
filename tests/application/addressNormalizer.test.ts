@@ -381,13 +381,13 @@ describe('createAddressNormalizer', () => {
         block: '2-3',
         unmatched: ' タワ-12F',
         level: 8,
-        point: { lat: 35, lng: 139, level: 8 },
+        point: { latitude: 35, longitude: 139, level: 8 },
       },
       '東京都渋谷区道玄坂1-2-3': {
         ...SHIBUYA,
         block: '2-3',
         level: 8,
-        point: { lat: 35.5, lng: 139.5, level: 8 },
+        point: { latitude: 35.5, longitude: 139.5, level: 8 },
       },
     });
     const result = await createAddressNormalizer(parser).normalize(
@@ -400,7 +400,7 @@ describe('createAddressNormalizer', () => {
       building: 'タワー12F',
       unmatched: '',
       level: 8,
-      point: { lat: 35.5, lng: 139.5, level: 8 },
+      point: { latitude: 35.5, longitude: 139.5, level: 8 },
       split: 'found',
     });
     assert.deepEqual(parser.calls, [

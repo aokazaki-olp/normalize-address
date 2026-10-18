@@ -44,8 +44,8 @@ export interface AddressResult {
 export type AddressLevel = 0 | 1 | 2 | 3 | 8;
 
 export interface AddressPoint {
-  lat: number;
-  lng: number;
+  latitude: number; // NJA の lat
+  longitude: number; // NJA の lng
   level: number;
 }
 ```
@@ -54,6 +54,7 @@ export interface AddressPoint {
 - `building`・`unmatched` は `null` にせず文字列のまま。`unmatched` は無ければ `''`。`building` の `''` の意味は次の項のとおり `split` を見る
 - `building` が `''` なのは、`split` が `'none'`（住所で終わっていて建物部が無い）のときだけではない。`'skipped'`（level 3 未満で切れ目を探さない）・`'unresolved'`（町字まで読めたが切れ目を決められなかった）のときも `''` で、建物部は `unmatched` に残る。利用者は `building` の `''` だけで「建物が無い」と判断せず `split` を見る。`split` の4つの値の意味と、そのときの `building`・`unmatched` は型 `SplitStatus` の TSDoc（名前では公開しない。`AddressResult['split']` で取れる）にも書く
 - `split` が `'found'` で手順4（建物部の始まりの位置）で切ったときは、住所の項目・`level`・`point`・`codes` を前半の解析の結果から取り、`nja` は常に全体（テキスト）の解析の結果なので、`level` と `nja` の中の `level`、`block` と `nja` の中の `addr` が違うことがある（下の「出力の表」）
+- `point` の緯度・経度は、NJA の `lat`・`lng` を省略しない名前 `latitude`・`longitude` にする（規約 §3 の「省略禁止」。ユーザーの決定、2026-10-19）。`nja` の中の `point` は NJA の写しなので `lat`・`lng` のまま
 - `point.level` は NJA の型のまま `number` にする（結果の `level` の `AddressLevel` のように値を絞らない）
 - `codes`・`nja` は、オプションが `true` のときだけ置く（`false` や省略のときは項目そのものが無い）
 

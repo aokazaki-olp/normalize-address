@@ -38,7 +38,7 @@ describe('toParsedAddress', () => {
       block: '1',
       unmatched: '',
       level: 8,
-      point: { lat: 43.06, lng: 141.35, level: 8 },
+      point: { latitude: 43.06, longitude: 141.35, level: 8 },
       lgCode: '011011',
       machiazaId: '0001002',
       raw: SAPPORO,
