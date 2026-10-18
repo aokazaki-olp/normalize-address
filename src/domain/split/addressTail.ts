@@ -40,6 +40,10 @@ const ORIGINAL_NUMBER_START = new RegExp(
 const leadingTailNumber = (text: string): string =>
   LEADING_TAIL_NUMBER.exec(text)?.[0] ?? '';
 
+const digitRuns = (numberPart: string): RegExpExecArray[] => [
+  ...numberPart.matchAll(DIGIT_RUNS),
+];
+
 const hyphenate = (numberPart: string): string =>
   numberPart.replace(NON_DIGITS, '-');
 
@@ -83,7 +87,7 @@ export const addressNumbers = (
   thirdIsLot: boolean,
   floorDigits: number,
 ): string => {
-  const runs = [...numberPart.matchAll(DIGIT_RUNS)];
+  const runs = digitRuns(numberPart);
   let count = runs.length;
   if (count > 1 && FLOOR_OR_ROOM_MARK.test(after)) {
     const last = runs[count - 1];
@@ -106,36 +110,6 @@ export const addressNumbers = (
   return last === undefined
     ? ''
     : numberPart.slice(0, last.index + last[0].length);
-};
-
-/**
- * 全体の結果から、住所の末尾と残りを決める（docs/design.md の手順5）
- *
- * @param whole - テキスト全体の解析の結果（level 3 以上）
- * @param thirdIsLot - 3つ目の番号が元のテキストで「の」などでつながるなら true
- * @param floorDigits - 最後の番号の末尾のうち、元のテキストで空白のあとにある階の数字の桁数（無ければ 0）
- * @returns 住所の末尾と残り
- */
-export const wholeTail = (
-  whole: ParsedAddress,
-  thirdIsLot: boolean,
-  floorDigits: number,
-): AddressTail => {
-  const numberPart = leadingTailNumber(whole.unmatched);
-  const kept =
-    whole.level === 8
-      ? numberPart
-      : addressNumbers(
-          numberPart,
-          whole.unmatched.slice(numberPart.length),
-          thirdIsLot,
-          floorDigits,
-        );
-  const tail = whole.level === 8 ? (whole.block ?? '') : hyphenate(kept);
-  const afterTail =
-    whole.level === 8 ? whole.unmatched : whole.unmatched.slice(kept.length);
-  const rest = tail === '' ? afterTail : afterTail.replace(LEADING_SUFFIX, '');
-  return { tail, rest };
 };
 
 /**
@@ -239,10 +213,14 @@ const joinersAt = (
  *
  * @param text - ガード付き NFKC をかけたテキスト
  * @param numberPart - unmatched の先頭の番号の並び
+ * @param runs - numberPart の中の数字の並び（DIGIT_RUNS の一致）
  * @returns 元のテキストで同じ番号が並ぶ最初の箇所（町字に最も近い箇所）の、3つ目の番号の前のつなぎが「の」「ノ」で終わるなら true
  */
-export const isThirdLot = (text: string, numberPart: string): boolean => {
-  const runs = [...numberPart.matchAll(DIGIT_RUNS)];
+export const isThirdLot = (
+  text: string,
+  numberPart: string,
+  runs: readonly RegExpExecArray[],
+): boolean => {
   const third = blockNumberCount(numberPart, runs) + ADDRESS_NUMBER_LIMIT;
   if (runs.length <= third) {
     return false;
@@ -263,14 +241,10 @@ export const isThirdLot = (text: string, numberPart: string): boolean => {
  * NJA は other の空白を消すので、`N番地M 3F` の `M` と `3` は other では1つの番号になる。
  *
  * @param text - ガード付き NFKC をかけたテキスト
- * @param numberPart - unmatched の先頭の番号の並び
+ * @param last - unmatched の先頭の番号の並びの、最後の番号（無ければ ''）
  * @returns 元のテキストで、最後の番号が空白をはさんで階の数字に続くなら、その階の数字の桁数。無ければ 0
  */
-export const spacedFloorDigits = (text: string, numberPart: string): number => {
-  const last = [...numberPart.matchAll(DIGIT_RUNS)].at(-1)?.[0];
-  if (last === undefined) {
-    return 0;
-  }
+export const spacedFloorDigits = (text: string, last: string): number => {
   for (const match of text.matchAll(SPACED_FLOOR)) {
     const [, number = '', floor = ''] = match;
     if (number + floor === last) {
@@ -298,9 +272,25 @@ export const wholeContext = (
   whole: ParsedAddress,
   text: string,
 ): WholeContext => {
+  if (whole.level === 8) {
+    const tail = whole.block ?? '';
+    const rest =
+      tail === ''
+        ? whole.unmatched
+        : whole.unmatched.replace(LEADING_SUFFIX, '');
+    return { whole, tail, rest, thirdIsLot: false };
+  }
   const numberPart = leadingTailNumber(whole.unmatched);
-  const thirdIsLot = whole.level !== 8 && isThirdLot(text, numberPart);
-  const floorDigits =
-    whole.level === 8 ? 0 : spacedFloorDigits(text, numberPart);
-  return { whole, ...wholeTail(whole, thirdIsLot, floorDigits), thirdIsLot };
+  const runs = digitRuns(numberPart);
+  const thirdIsLot = isThirdLot(text, numberPart, runs);
+  const kept = addressNumbers(
+    numberPart,
+    whole.unmatched.slice(numberPart.length),
+    thirdIsLot,
+    spacedFloorDigits(text, runs.at(-1)?.[0] ?? ''),
+  );
+  const tail = hyphenate(kept);
+  const afterTail = whole.unmatched.slice(kept.length);
+  const rest = tail === '' ? afterTail : afterTail.replace(LEADING_SUFFIX, '');
+  return { whole, tail, rest, thirdIsLot };
 };
