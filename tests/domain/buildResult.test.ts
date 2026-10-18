@@ -12,7 +12,7 @@ const WHOLE: ParsedAddress = {
   block: '１',
   unmatched: ' ビル',
   level: 8,
-  point: { lat: 43, lng: 141, level: 8 },
+  point: { latitude: 43, longitude: 141, level: 8 },
   lgCode: '011011',
   machiazaId: '0001002',
   raw: { pref: '北海道' },
@@ -47,7 +47,7 @@ describe('buildResult', () => {
         building: 'ビル1F',
         unmatched: '',
         level: 8,
-        point: { lat: 43, lng: 141, level: 8 },
+        point: { latitude: 43, longitude: 141, level: 8 },
         split: 'found',
       },
     );
@@ -128,7 +128,7 @@ describe('buildResult', () => {
       ...WHOLE,
       block: '1-2',
       level: 3,
-      point: { lat: 1, lng: 2, level: 3 },
+      point: { latitude: 1, longitude: 2, level: 3 },
       lgCode: '011012',
       machiazaId: '0001003',
       raw: { front: true },
@@ -141,7 +141,7 @@ describe('buildResult', () => {
     );
     assert.equal(result.block, '1-2');
     assert.equal(result.level, 3);
-    assert.deepEqual(result.point, { lat: 1, lng: 2, level: 3 });
+    assert.deepEqual(result.point, { latitude: 1, longitude: 2, level: 3 });
     assert.deepEqual(result.codes, { lgCode: '011012', machiazaId: '0001003' });
     assert.equal(result.unmatched, '9');
     assert.equal(result.nja, WHOLE.raw);

@@ -12,12 +12,12 @@ import type { CharStyle } from '@arihirookazaki/normalize-core';
  */
 export type AddressLevel = 0 | 1 | 2 | 3 | 8;
 
-/** 位置情報（NJA 3.1.3 の point。EPSG:4326（WGS84）） */
+/** 位置情報（NJA 3.1.3 の point。EPSG:4326（WGS84）。NJA の lat・lng は省略しない名前にした） */
 export interface AddressPoint {
-  /** 緯度 */
-  lat: number;
-  /** 経度 */
-  lng: number;
+  /** 緯度（NJA の lat） */
+  latitude: number;
+  /** 経度（NJA の lng） */
+  longitude: number;
   /**
    * 位置の正確さ。1：都道府県の代表点、2：市区町村の代表点、3：丁目・町字の代表点、8：住居表示住所または地番の位置。
    * 結果の level と違うことがある
