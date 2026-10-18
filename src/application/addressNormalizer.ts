@@ -5,6 +5,7 @@
  */
 
 import { guardedNfkc } from '@arihirookazaki/normalize-core';
+import { assertNever } from '../domain/assertNever.ts';
 import { buildResult } from '../domain/buildResult.ts';
 import { prepareOptions } from '../domain/options.ts';
 import {
@@ -75,7 +76,8 @@ const findAtBuildingStart = async (
     }
     const front = await parser.parse(text.slice(0, start));
     const side = { before: text.slice(0, start), after, building };
-    switch (judgeFront(context, front, side)) {
+    const verdict = judgeFront(context, front, side);
+    switch (verdict) {
       case 'accepted':
         return { found: foundAtBuildingStart(front, building), addressOnly };
       case 'addressOnly':
@@ -83,6 +85,8 @@ const findAtBuildingStart = async (
         break;
       case 'rejected':
         break;
+      default:
+        return assertNever(verdict);
     }
   }
   return { addressOnly };
