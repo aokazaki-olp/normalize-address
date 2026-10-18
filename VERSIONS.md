@@ -35,7 +35,7 @@
 
 ## 解決した devDependencies の版
 
-確認日は 2026-10-19。`package.json` の範囲の中で `npm update` し、`npm ls --depth=0` で確かめた。最新は `npm view <パッケージ> version` で確かめた。normalize-core（feature/refactor-char-style-api の cd5d895）の解決した版と同じ。
+確認日は 2026-10-19。`package.json` の範囲の中で `npm update` し、`npm ls --depth=0` で確かめた。最新は `npm view <パッケージ> version` で確かめた。normalize-core（develop の 794e2f9）の解決した版と同じ。
 
 | パッケージ             | 範囲       | 解決した版 | 最新    |
 | ---------------------- | ---------- | ---------- | ------- |
