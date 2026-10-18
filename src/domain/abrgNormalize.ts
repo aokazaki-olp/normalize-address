@@ -52,7 +52,7 @@ const DASHES = new Set([
   '\u3030',
 ]);
 
-const KATAKANA_DASH = /([\d０-９])ー([\d０-９])/dgu;
+const KATAKANA_DASH = /([\d０-９])ー([\d０-９])/gu;
 
 const BAN_GAI_WITH_BUILDING = /(\d+番街)[\t\n\f\r ]*(\d+(?:号|棟))/dgu;
 const BAN_GAI = /(\d+)番街/dgu;
@@ -667,14 +667,7 @@ export const addSpaceAfterNumberBeforeJapanese = (
   return joinTracked(parts);
 };
 
-/**
- * 住所の型に応じて番号の表記を整える（applyAddressFormatting）
- *
- * @param tracked - 対象
- * @param addressType - 住所の型
- * @returns 整えた結果
- */
-export const applyAddressFormatting = (
+const applyAddressFormatting = (
   tracked: TrackedText,
   addressType: AddressType,
 ): TrackedText => {
