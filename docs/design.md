@@ -230,7 +230,7 @@ NJA は応答の本文を取得処理の外で読む（NJA 3.1.3 の `dist/main-
 src/
   index.ts       公開面。NJA の AddressParser を1つ作り、それを使う create を AddressNormalizer として公開する
   application/   処理の流れ（手順1〜8）。ports の AddressParser だけを通して解析する
-  domain/        純粋な処理（options の検査と準備、同じ名前の市区町村の都道府県の候補と、候補ごとの解析の結果から最も良いものを選ぶこと、切れ目の候補、建物部の始まりの位置と abrg の規則の移植、住所の末尾、結果の比較と組み立て）
+  domain/        純粋な処理（options の検査と準備、同じ名前の市区町村の都道府県の候補と、候補ごとの解析の結果から最も良いものを選ぶこと、切れ目の候補、建物部の始まりの位置と abrg の規則の移植、住所の末尾、結果の比較と組み立て、型で閉じた switch の網羅の検査 assertNever。規約 §5.2 は src/shared/ に置くとするが、層を増やさないため、使う application から import できる domain に置く）
   ports/         インターフェース（AddressParser、AddressNormalizer、AddressNormalizerFactory）と型だけ
   adapters/      外部との接続。NJA と取得の失敗の判定、AddressNormalizationError
 ```

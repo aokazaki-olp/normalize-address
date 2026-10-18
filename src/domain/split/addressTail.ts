@@ -262,7 +262,7 @@ export interface WholeContext extends AddressTail {
 }
 
 /**
- * 全体の結果から、切れ目の判定に使う文脈を作る
+ * 全体の結果から、切れ目の判定に使う文脈を作る（docs/design.md の手順5）
  *
  * @param whole - テキスト全体の解析の結果（level 3 以上）
  * @param text - ガード付き NFKC をかけたテキスト
